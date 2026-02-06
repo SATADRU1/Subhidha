@@ -1,9 +1,9 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, fontSize } from '../../src/constants/theme';
-import { useAuth } from '../../src/contexts/AuthContext';
-import { t } from '../../src/utils/helpers';
+import { colors, fontSize } from '@/src/constants/theme';
+import { useAuth } from '@/src/contexts/AuthContext';
+import { t } from '@/src/utils/helpers';
 
 export default function TabsLayout() {
   const { language } = useAuth();

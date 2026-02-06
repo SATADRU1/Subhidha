@@ -11,11 +11,11 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, spacing, fontSize, borderRadius } from '../../src/constants/theme';
-import { useAuth } from '../../src/contexts/AuthContext';
-import { ComplaintCard } from '../../src/components/ComplaintCard';
-import { complaintsAPI } from '../../src/services/api';
-import { t } from '../../src/utils/helpers';
+import { colors, spacing, fontSize, borderRadius } from '@/src/constants/theme';
+import { useAuth } from '@/src/contexts/AuthContext';
+import { ComplaintCard } from '@/src/components/ComplaintCard';
+import { complaintsAPI } from '@/src/services/api';
+import { t } from '@/src/utils/helpers';
 
 type TabType = 'all' | 'pending' | 'resolved';
 

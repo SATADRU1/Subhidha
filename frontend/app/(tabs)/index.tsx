@@ -11,11 +11,11 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, spacing, fontSize, borderRadius } from '../../src/constants/theme';
-import { useAuth } from '../../src/contexts/AuthContext';
-import { ServiceCard } from '../../src/components/ServiceCard';
-import { billsAPI, announcementsAPI, complaintsAPI } from '../../src/services/api';
-import { t, formatCurrency } from '../../src/utils/helpers';
+import { colors, spacing, fontSize, borderRadius } from '@/src/constants/theme';
+import { useAuth } from '@/src/contexts/AuthContext';
+import { ServiceCard } from '@/src/components/ServiceCard';
+import { billsAPI, announcementsAPI, complaintsAPI } from '@/src/services/api';
+import { t, formatCurrency } from '@/src/utils/helpers';
 
 export default function HomeScreen() {
   const router = useRouter();

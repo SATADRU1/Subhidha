@@ -12,10 +12,10 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, fontSize, borderRadius } from '../../src/constants/theme';
-import { useAuth } from '../../src/contexts/AuthContext';
-import { authAPI } from '../../src/services/api';
-import { t } from '../../src/utils/helpers';
+import { colors, spacing, fontSize, borderRadius } from '@/src/constants/theme';
+import { useAuth } from '@/src/contexts/AuthContext';
+import { authAPI } from '@/src/services/api';
+import { t } from '@/src/utils/helpers';
 
 export default function AdminLoginScreen() {
   const router = useRouter();

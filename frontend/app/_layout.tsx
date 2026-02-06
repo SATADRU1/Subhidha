@@ -1,8 +1,8 @@
 import React from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { AuthProvider } from '../src/contexts/AuthContext';
-import { colors } from '../src/constants/theme';
+import { AuthProvider } from '@/src/contexts/AuthContext';
+import { colors } from '@/src/constants/theme';
 
 export default function RootLayout() {
   return (

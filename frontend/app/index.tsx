@@ -2,9 +2,9 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, fontSize, borderRadius } from '../src/constants/theme';
-import { useAuth } from '../src/contexts/AuthContext';
-import { t } from '../src/utils/helpers';
+import { colors, spacing, fontSize, borderRadius } from '@/src/constants/theme';
+import { useAuth } from '@/src/contexts/AuthContext';
+import { t } from '@/src/utils/helpers';
 
 export default function LandingScreen() {
   const router = useRouter();
