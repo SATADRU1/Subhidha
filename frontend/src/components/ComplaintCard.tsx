@@ -1,8 +1,8 @@
 import React from 'react';
 import { TouchableOpacity, View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, fontSize, borderRadius } from '../constants/theme';
-import { formatDateTime, getStatusColor } from '../utils/helpers';
+import { colors, spacing, fontSize, borderRadius } from '@/src/constants/theme';
+import { formatDateTime, getStatusColor } from '@/src/utils/helpers';
 
 interface ComplaintCardProps {
   complaint: {

@@ -1,8 +1,8 @@
 import React from 'react';
 import { TouchableOpacity, View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, fontSize, borderRadius } from '../constants/theme';
-import { formatCurrency, formatDate, getStatusColor, getServiceIcon } from '../utils/helpers';
+import { colors, spacing, fontSize, borderRadius } from '@/src/constants/theme';
+import { formatCurrency, formatDate, getStatusColor, getServiceIcon } from '@/src/utils/helpers';
 
 interface BillCardProps {
   bill: {
