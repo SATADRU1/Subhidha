@@ -7,26 +7,27 @@ import {
   RefreshControl,
   TouchableOpacity,
   ActivityIndicator,
+  StatusBar,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, spacing, fontSize, borderRadius } from '@/src/constants/theme';
+import { colors, spacing, fontSize, borderRadius, shadows } from '@/src/constants/theme';
 import { useAuth } from '@/src/contexts/AuthContext';
-import { ServiceCard } from '@/src/components/ServiceCard';
 import { billsAPI, announcementsAPI, complaintsAPI } from '@/src/services/api';
-import { t, formatCurrency } from '@/src/utils/helpers';
+import { t, formatCurrency, getGreeting, getServiceColor, getServiceIcon } from '@/src/utils/helpers';
 
 export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { user, language, setLanguage, logout } = useAuth();
+  const { user, language, setLanguage } = useAuth();
   
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [pendingBills, setPendingBills] = useState<any[]>([]);
   const [announcements, setAnnouncements] = useState<any[]>([]);
-  const [pendingComplaints, setPendingComplaints] = useState(0);
+  const [complaints, setComplaints] = useState<any[]>([]);
   const [totalDue, setTotalDue] = useState(0);
 
   const fetchData = useCallback(async () => {
@@ -36,17 +37,10 @@ export default function HomeScreen() {
         announcementsAPI.getAll(),
         complaintsAPI.getAll(),
       ]);
-
       setPendingBills(billsRes.data);
       setAnnouncements(announcementsRes.data);
-      
-      const pending = complaintsRes.data.filter(
-        (c: any) => c.status === 'submitted' || c.status === 'in_progress'
-      ).length;
-      setPendingComplaints(pending);
-      
-      const total = billsRes.data.reduce((sum: number, bill: any) => sum + bill.amount, 0);
-      setTotalDue(total);
+      setComplaints(complaintsRes.data);
+      setTotalDue(billsRes.data.reduce((sum: number, b: any) => sum + b.amount, 0));
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -54,9 +48,7 @@ export default function HomeScreen() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -64,162 +56,257 @@ export default function HomeScreen() {
     setRefreshing(false);
   };
 
-  const toggleLanguage = () => {
-    setLanguage(language === 'en' ? 'hi' : 'en');
-  };
+  const activeComplaints = complaints.filter(
+    c => c.status === 'submitted' || c.status === 'in_progress'
+  ).length;
+
+  // Quick Action Items - PhonePe Style
+  const quickActions = [
+    { 
+      id: 'electricity', 
+      title: t('electricityBill', language),
+      subtitle: t('electricityBillDesc', language),
+      icon: 'flash',
+      color: colors.electricity,
+      route: '/payment?type=electricity',
+    },
+    { 
+      id: 'water', 
+      title: t('waterBill', language),
+      subtitle: t('waterBillDesc', language),
+      icon: 'water',
+      color: colors.water,
+      route: '/payment?type=water',
+    },
+    { 
+      id: 'gas', 
+      title: t('gasBill', language),
+      subtitle: t('gasBillDesc', language),
+      icon: 'flame',
+      color: colors.gas,
+      route: '/payment?type=gas',
+    },
+    { 
+      id: 'complaint', 
+      title: t('fileComplaint', language),
+      subtitle: t('fileComplaintDesc', language),
+      icon: 'document-text',
+      color: colors.complaint,
+      route: '/new-complaint',
+    },
+  ];
+
+  // All Services - Organized by Category
+  const serviceCategories = [
+    {
+      title: t('electricityServices', language),
+      services: [
+        { title: t('electricityBill', language), desc: t('electricityBillDesc', language), icon: 'flash', color: colors.electricity, route: '/(tabs)/bills' },
+        { title: t('newConnection', language), desc: t('newConnectionDesc', language), icon: 'add-circle', color: colors.electricity, route: '/service-request?type=electricity' },
+        { title: t('meterReading', language), desc: t('meterReadingDesc', language), icon: 'speedometer', color: colors.electricity, route: '/service-request?type=electricity&request=meter_reading' },
+      ]
+    },
+    {
+      title: t('waterServices', language),
+      services: [
+        { title: t('waterBill', language), desc: t('waterBillDesc', language), icon: 'water', color: colors.water, route: '/(tabs)/bills' },
+        { title: t('newConnection', language), desc: t('newConnectionDesc', language), icon: 'add-circle', color: colors.water, route: '/service-request?type=water' },
+      ]
+    },
+    {
+      title: t('complaintsGrievances', language),
+      services: [
+        { title: t('fileComplaint', language), desc: t('fileComplaintDesc', language), icon: 'create', color: colors.complaint, route: '/new-complaint' },
+        { title: t('trackComplaint', language), desc: t('trackComplaintDesc', language), icon: 'search', color: colors.info, route: '/(tabs)/complaints' },
+      ]
+    },
+  ];
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
+        <StatusBar barStyle="light-content" />
         <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={styles.loadingText}>{t('loading', language)}</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + spacing.md }]}>
-        <View style={styles.headerTop}>
-          <View style={styles.userInfo}>
+      <StatusBar barStyle="light-content" />
+      
+      {/* Header with Gradient */}
+      <LinearGradient
+        colors={[colors.primary, colors.primaryDark]}
+        style={[styles.header, { paddingTop: insets.top + spacing.md }]}
+      >
+        {/* Top Bar */}
+        <View style={styles.topBar}>
+          <View style={styles.userSection}>
             <View style={styles.avatar}>
-              <Ionicons name="person" size={24} color={colors.white} />
+              <Ionicons name="person" size={20} color={colors.textWhite} />
             </View>
             <View>
-              <Text style={styles.greeting}>
-                {language === 'en' ? 'Welcome' : 'नमस्ते'}
-              </Text>
-              <Text style={styles.userName}>{user?.name || 'Citizen'}</Text>
+              <Text style={styles.greeting}>{getGreeting(language)}</Text>
+              <Text style={styles.userName}>{user?.name || t('hello', language)}</Text>
             </View>
           </View>
           <View style={styles.headerActions}>
-            <TouchableOpacity onPress={toggleLanguage} style={styles.langButton}>
-              <Text style={styles.langText}>{language === 'en' ? 'हिं' : 'EN'}</Text>
+            <TouchableOpacity 
+              style={styles.headerBtn}
+              onPress={() => setLanguage(language === 'en' ? 'hi' : 'en')}
+            >
+              <Ionicons name="language" size={22} color={colors.textWhite} />
             </TouchableOpacity>
             <TouchableOpacity 
-              onPress={() => router.push('/notifications')} 
-              style={styles.notifButton}
+              style={styles.headerBtn}
+              onPress={() => router.push('/notifications')}
             >
-              <Ionicons name="notifications" size={24} color={colors.white} />
+              <Ionicons name="notifications" size={22} color={colors.textWhite} />
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Quick Stats */}
-        <View style={styles.statsContainer}>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>{formatCurrency(totalDue)}</Text>
-            <Text style={styles.statLabel}>{t('pendingBills', language)}</Text>
-          </View>
-          <View style={[styles.statCard, styles.statCardAlt]}>
-            <Text style={styles.statValue}>{pendingComplaints}</Text>
-            <Text style={styles.statLabel}>{t('complaints', language)}</Text>
-          </View>
+        {/* Stats Cards */}
+        <View style={styles.statsRow}>
+          <TouchableOpacity 
+            style={styles.statCard}
+            onPress={() => router.push('/(tabs)/bills')}
+          >
+            <View style={styles.statIconBox}>
+              <Ionicons name="receipt" size={20} color={colors.warning} />
+            </View>
+            <View style={styles.statContent}>
+              <Text style={styles.statLabel}>{t('pendingPayments', language)}</Text>
+              <Text style={styles.statValue}>{formatCurrency(totalDue)}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.statCard}
+            onPress={() => router.push('/(tabs)/complaints')}
+          >
+            <View style={[styles.statIconBox, { backgroundColor: colors.info + '20' }]}>
+              <Ionicons name="document-text" size={20} color={colors.info} />
+            </View>
+            <View style={styles.statContent}>
+              <Text style={styles.statLabel}>{t('activeComplaints', language)}</Text>
+              <Text style={styles.statValue}>{activeComplaints}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
+          </TouchableOpacity>
         </View>
-      </View>
+      </LinearGradient>
 
       <ScrollView
         style={styles.content}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         showsVerticalScrollIndicator={false}
       >
-        {/* Announcements */}
+        {/* Announcements Banner */}
         {announcements.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.announcementCard}>
-              <View style={styles.announcementHeader}>
-                <Ionicons name="megaphone" size={20} color={colors.warning} />
-                <Text style={styles.announcementTitle}>{announcements[0].title}</Text>
-              </View>
-              <Text style={styles.announcementText} numberOfLines={2}>
+          <View style={styles.announcementBanner}>
+            <View style={styles.announcementIcon}>
+              <Ionicons name="megaphone" size={18} color={colors.warning} />
+            </View>
+            <View style={styles.announcementContent}>
+              <Text style={styles.announcementTitle}>{announcements[0].title}</Text>
+              <Text style={styles.announcementText} numberOfLines={1}>
                 {announcements[0].message}
               </Text>
             </View>
           </View>
         )}
 
-        {/* Services Grid */}
+        {/* Quick Actions - PhonePe Style Grid */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t('services', language)}</Text>
-          <View style={styles.servicesGrid}>
-            <ServiceCard
-              title={t('electricity', language)}
-              icon="flash"
-              color={colors.electricity}
-              onPress={() => router.push('/service-request?type=electricity')}
-            />
-            <ServiceCard
-              title={t('gas', language)}
-              icon="flame"
-              color={colors.gas}
-              onPress={() => router.push('/service-request?type=gas')}
-            />
-            <ServiceCard
-              title={t('water', language)}
-              icon="water"
-              color={colors.water}
-              onPress={() => router.push('/service-request?type=water')}
-            />
-            <ServiceCard
-              title={t('sanitation', language)}
-              icon="leaf"
-              color={colors.sanitation}
-              onPress={() => router.push('/service-request?type=sanitation')}
-            />
-            <ServiceCard
-              title={t('pendingBills', language)}
-              icon="receipt"
-              color={colors.error}
-              badge={pendingBills.length}
-              onPress={() => router.push('/(tabs)/bills')}
-            />
-            <ServiceCard
-              title={t('fileComplaint', language)}
-              icon="document-text"
-              color={colors.municipal}
-              onPress={() => router.push('/new-complaint')}
-            />
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>{t('quickActions', language)}</Text>
+          </View>
+          <View style={styles.quickActionsGrid}>
+            {quickActions.map((action) => (
+              <TouchableOpacity
+                key={action.id}
+                style={styles.quickActionCard}
+                onPress={() => router.push(action.route as any)}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.quickActionIcon, { backgroundColor: action.color + '15' }]}>
+                  <Ionicons name={action.icon as any} size={28} color={action.color} />
+                </View>
+                <Text style={styles.quickActionTitle} numberOfLines={1}>{action.title}</Text>
+                <Text style={styles.quickActionSubtitle} numberOfLines={1}>{action.subtitle}</Text>
+              </TouchableOpacity>
+            ))}
           </View>
         </View>
 
-        {/* Pending Bills Preview */}
+        {/* Pending Bills */}
         {pendingBills.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>{t('pendingBills', language)}</Text>
               <TouchableOpacity onPress={() => router.push('/(tabs)/bills')}>
-                <Text style={styles.seeAll}>
-                  {language === 'en' ? 'See All' : 'सभी देखें'}
-                </Text>
+                <Text style={styles.viewAllText}>{t('viewAll', language)}</Text>
               </TouchableOpacity>
             </View>
-            {pendingBills.slice(0, 2).map((bill) => (
-              <TouchableOpacity
-                key={bill.id}
-                style={styles.billPreview}
-                onPress={() => router.push(`/bill-details?id=${bill.id}`)}
-              >
-                <View style={styles.billLeft}>
-                  <Ionicons 
-                    name={bill.service_type === 'electricity' ? 'flash' : 
-                          bill.service_type === 'water' ? 'water' : 'flame'} 
-                    size={24} 
-                    color={colors[bill.service_type as keyof typeof colors] || colors.primary} 
-                  />
-                  <View style={styles.billInfo}>
-                    <Text style={styles.billType}>{bill.service_type.toUpperCase()}</Text>
-                    <Text style={styles.billNumber}>{bill.bill_number}</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              {pendingBills.slice(0, 3).map((bill) => (
+                <TouchableOpacity
+                  key={bill.id}
+                  style={styles.billCard}
+                  onPress={() => router.push(`/payment?billId=${bill.id}`)}
+                >
+                  <View style={[styles.billIcon, { backgroundColor: getServiceColor(bill.service_type) + '15' }]}>
+                    <Ionicons 
+                      name={getServiceIcon(bill.service_type) as any} 
+                      size={24} 
+                      color={getServiceColor(bill.service_type)} 
+                    />
                   </View>
-                </View>
-                <Text style={styles.billAmount}>{formatCurrency(bill.amount)}</Text>
-              </TouchableOpacity>
-            ))}
+                  <Text style={styles.billType}>{bill.service_type.toUpperCase()}</Text>
+                  <Text style={styles.billAmount}>{formatCurrency(bill.amount)}</Text>
+                  <Text style={styles.billDue}>Due: {bill.due_date?.split('T')[0]}</Text>
+                  <View style={styles.payBtnSmall}>
+                    <Text style={styles.payBtnText}>{t('payNow', language)}</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </View>
         )}
 
-        <View style={{ height: spacing.xxl }} />
+        {/* All Services by Category */}
+        {serviceCategories.map((category, index) => (
+          <View key={index} style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>{category.title}</Text>
+            </View>
+            <View style={styles.servicesList}>
+              {category.services.map((service, sIndex) => (
+                <TouchableOpacity
+                  key={sIndex}
+                  style={styles.serviceItem}
+                  onPress={() => router.push(service.route as any)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.serviceIcon, { backgroundColor: service.color + '15' }]}>
+                    <Ionicons name={service.icon as any} size={22} color={service.color} />
+                  </View>
+                  <View style={styles.serviceContent}>
+                    <Text style={styles.serviceTitle}>{service.title}</Text>
+                    <Text style={styles.serviceDesc}>{service.desc}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={colors.textLight} />
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        ))}
+
+        <View style={{ height: spacing.xxxl }} />
       </ScrollView>
     </View>
   );
@@ -236,164 +323,253 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: colors.background,
   },
-  header: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.lg,
-    borderBottomLeftRadius: borderRadius.xl,
-    borderBottomRightRadius: borderRadius.xl,
+  loadingText: {
+    marginTop: spacing.lg,
+    fontSize: fontSize.md,
+    color: colors.textSecondary,
   },
-  headerTop: {
+  header: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.lg,
+  },
+  topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: spacing.lg,
   },
-  userInfo: {
+  userSection: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: spacing.sm,
+    marginRight: spacing.md,
   },
   greeting: {
     fontSize: fontSize.sm,
-    color: colors.white,
+    color: colors.textWhite,
     opacity: 0.8,
   },
   userName: {
     fontSize: fontSize.lg,
     fontWeight: '600',
-    color: colors.white,
+    color: colors.textWhite,
   },
   headerActions: {
     flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  headerBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.15)',
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  langButton: {
-    backgroundColor: colors.white,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.sm,
-    marginRight: spacing.sm,
-  },
-  langText: {
-    fontSize: fontSize.sm,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  notifButton: {
-    padding: spacing.xs,
-  },
-  statsContainer: {
+  statsRow: {
     flexDirection: 'row',
     gap: spacing.md,
   },
   statCard: {
     flex: 1,
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
+    flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
   },
-  statCardAlt: {
-    backgroundColor: colors.primaryLight,
+  statIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: borderRadius.sm,
+    backgroundColor: colors.warning + '20',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  statValue: {
-    fontSize: fontSize.xl,
-    fontWeight: 'bold',
-    color: colors.primary,
+  statContent: {
+    flex: 1,
+    marginLeft: spacing.sm,
   },
   statLabel: {
     fontSize: fontSize.xs,
-    color: colors.gray,
-    marginTop: 2,
+    color: colors.textSecondary,
+  },
+  statValue: {
+    fontSize: fontSize.md,
+    fontWeight: '700',
+    color: colors.textPrimary,
   },
   content: {
     flex: 1,
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.md,
+  },
+  announcementBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.warning + '10',
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.lg,
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.warning,
+  },
+  announcementIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: borderRadius.sm,
+    backgroundColor: colors.warning + '20',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  announcementContent: {
+    flex: 1,
+    marginLeft: spacing.md,
+  },
+  announcementTitle: {
+    fontSize: fontSize.sm,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  announcementText: {
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
   },
   section: {
-    marginBottom: spacing.lg,
+    marginTop: spacing.xl,
+    paddingHorizontal: spacing.lg,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.sm,
+    marginBottom: spacing.md,
   },
   sectionTitle: {
     fontSize: fontSize.lg,
-    fontWeight: '600',
-    color: colors.black,
-    marginBottom: spacing.sm,
+    fontWeight: '700',
+    color: colors.textPrimary,
   },
-  seeAll: {
+  viewAllText: {
     fontSize: fontSize.sm,
     color: colors.primary,
+    fontWeight: '500',
   },
-  servicesGrid: {
+  quickActionsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
   },
-  announcementCard: {
-    backgroundColor: colors.warning + '15',
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.warning,
-  },
-  announcementHeader: {
-    flexDirection: 'row',
+  quickActionCard: {
+    width: '48%',
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
     alignItems: 'center',
-    marginBottom: spacing.xs,
+    ...shadows.medium,
   },
-  announcementTitle: {
-    fontSize: fontSize.md,
-    fontWeight: '600',
-    color: colors.black,
-    marginLeft: spacing.xs,
-  },
-  announcementText: {
-    fontSize: fontSize.sm,
-    color: colors.gray,
-  },
-  billPreview: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: colors.white,
+  quickActionIcon: {
+    width: 56,
+    height: 56,
     borderRadius: borderRadius.md,
-    padding: spacing.md,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: spacing.sm,
   },
-  billLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  quickActionTitle: {
+    fontSize: fontSize.md,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    textAlign: 'center',
   },
-  billInfo: {
-    marginLeft: spacing.sm,
+  quickActionSubtitle: {
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 2,
+  },
+  billCard: {
+    width: 150,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    marginRight: spacing.md,
+    alignItems: 'center',
+    ...shadows.medium,
+  },
+  billIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: borderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.sm,
   },
   billType: {
-    fontSize: fontSize.sm,
-    fontWeight: '600',
-    color: colors.black,
-  },
-  billNumber: {
     fontSize: fontSize.xs,
-    color: colors.gray,
+    fontWeight: '600',
+    color: colors.textSecondary,
   },
   billAmount: {
-    fontSize: fontSize.md,
+    fontSize: fontSize.lg,
     fontWeight: '700',
-    color: colors.primary,
+    color: colors.textPrimary,
+    marginVertical: spacing.xs,
+  },
+  billDue: {
+    fontSize: fontSize.xs,
+    color: colors.warning,
+    marginBottom: spacing.sm,
+  },
+  payBtnSmall: {
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    borderRadius: borderRadius.sm,
+  },
+  payBtnText: {
+    fontSize: fontSize.xs,
+    fontWeight: '600',
+    color: colors.textWhite,
+  },
+  servicesList: {
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    ...shadows.small,
+  },
+  serviceItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.divider,
+  },
+  serviceIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: borderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  serviceContent: {
+    flex: 1,
+    marginLeft: spacing.md,
+  },
+  serviceTitle: {
+    fontSize: fontSize.md,
+    fontWeight: '500',
+    color: colors.textPrimary,
+  },
+  serviceDesc: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
+    marginTop: 2,
   },
 });
