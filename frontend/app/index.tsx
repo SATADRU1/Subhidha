@@ -1,89 +1,139 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import React, { useEffect } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  StatusBar,
+  Dimensions,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, fontSize, borderRadius } from '@/src/constants/theme';
 import { useAuth } from '@/src/contexts/AuthContext';
 import { t } from '@/src/utils/helpers';
 
+const { width } = Dimensions.get('window');
+
 export default function LandingScreen() {
   const router = useRouter();
-  const { language, setLanguage, isAuthenticated, user } = useAuth();
+  const insets = useSafeAreaInsets();
+  const { language, setLanguage, isAuthenticated, user, isLoading } = useAuth();
 
-  React.useEffect(() => {
-    // If already authenticated, redirect to appropriate dashboard
-    if (isAuthenticated && user) {
+  useEffect(() => {
+    if (!isLoading && isAuthenticated && user) {
       if (user.type === 'admin') {
         router.replace('/(admin)');
       } else {
         router.replace('/(tabs)');
       }
     }
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, user, isLoading]);
 
-  const toggleLanguage = () => {
-    setLanguage(language === 'en' ? 'hi' : 'en');
-  };
+  if (isLoading) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <StatusBar barStyle="light-content" />
+        <View style={styles.logoCircle}>
+          <Ionicons name="business" size={48} color={colors.primary} />
+        </View>
+        <Text style={styles.loadingText}>{t('loading', language)}</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
-      {/* Language Toggle */}
-      <TouchableOpacity style={styles.langToggle} onPress={toggleLanguage}>
-        <Text style={styles.langText}>{language === 'en' ? 'हिंदी' : 'English'}</Text>
-      </TouchableOpacity>
+      <StatusBar barStyle="light-content" />
+      
+      {/* Top Section with Gradient */}
+      <LinearGradient
+        colors={[colors.primary, colors.primaryDark]}
+        style={[styles.topSection, { paddingTop: insets.top + spacing.lg }]}
+      >
+        {/* Language Toggle */}
+        <TouchableOpacity
+          style={styles.langButton}
+          onPress={() => setLanguage(language === 'en' ? 'hi' : 'en')}
+        >
+          <Ionicons name="language" size={18} color={colors.primary} />
+          <Text style={styles.langText}>{language === 'en' ? 'हिंदी' : 'English'}</Text>
+        </TouchableOpacity>
 
-      {/* Logo Section */}
-      <View style={styles.logoSection}>
+        {/* Logo & Title */}
         <View style={styles.logoContainer}>
-          <Ionicons name="business" size={64} color={colors.white} />
+          <View style={styles.logoCircle}>
+            <Ionicons name="business" size={48} color={colors.primary} />
+          </View>
+          <Text style={styles.appTitle}>{t('appName', language)}</Text>
+          <Text style={styles.tagline}>{t('tagline', language)}</Text>
         </View>
-        <Text style={styles.appName}>SUVIDHA</Text>
-        <Text style={styles.tagline}>{t('tagline', language)}</Text>
-      </View>
 
-      {/* Role Selection */}
-      <View style={styles.roleSection}>
-        <Text style={styles.selectText}>{t('selectRole', language)}</Text>
-        
+        {/* Illustration Icons */}
+        <View style={styles.iconsRow}>
+          <View style={[styles.serviceIconSmall, { backgroundColor: colors.electricity + '30' }]}>
+            <Ionicons name="flash" size={24} color={colors.electricity} />
+          </View>
+          <View style={[styles.serviceIconSmall, { backgroundColor: colors.water + '30' }]}>
+            <Ionicons name="water" size={24} color={colors.water} />
+          </View>
+          <View style={[styles.serviceIconSmall, { backgroundColor: colors.gas + '30' }]}>
+            <Ionicons name="flame" size={24} color={colors.gas} />
+          </View>
+          <View style={[styles.serviceIconSmall, { backgroundColor: colors.sanitation + '30' }]}>
+            <Ionicons name="leaf" size={24} color={colors.sanitation} />
+          </View>
+        </View>
+      </LinearGradient>
+
+      {/* Bottom Section */}
+      <View style={styles.bottomSection}>
+        <Text style={styles.welcomeText}>{t('welcomeTitle', language)}</Text>
+        <Text style={styles.subtitleText}>{t('welcomeSubtitle', language)}</Text>
+
+        {/* Citizen Card */}
         <TouchableOpacity
           style={styles.roleCard}
           onPress={() => router.push('/(auth)/citizen-login')}
-          activeOpacity={0.8}
+          activeOpacity={0.7}
         >
-          <View style={[styles.roleIcon, { backgroundColor: colors.primaryLight }]}>
-            <Ionicons name="person" size={36} color={colors.white} />
+          <View style={[styles.roleIconBox, { backgroundColor: colors.primary + '15' }]}>
+            <Ionicons name="person" size={32} color={colors.primary} />
           </View>
-          <View style={styles.roleInfo}>
-            <Text style={styles.roleTitle}>{t('citizen', language)}</Text>
-            <Text style={styles.roleDesc}>
-              {language === 'en' ? 'Access civic services, pay bills, file complaints' : 'नागरिक सेवाएं, बिल भुगतान, शिकायतें'}
-            </Text>
+          <View style={styles.roleContent}>
+            <Text style={styles.roleTitle}>{t('iAmCitizen', language)}</Text>
+            <Text style={styles.roleDesc}>{t('citizenDesc', language)}</Text>
           </View>
-          <Ionicons name="chevron-forward" size={24} color={colors.gray} />
+          <View style={styles.arrowBox}>
+            <Ionicons name="arrow-forward" size={20} color={colors.primary} />
+          </View>
         </TouchableOpacity>
 
+        {/* Admin Card */}
         <TouchableOpacity
           style={styles.roleCard}
           onPress={() => router.push('/(auth)/admin-login')}
-          activeOpacity={0.8}
+          activeOpacity={0.7}
         >
-          <View style={[styles.roleIcon, { backgroundColor: colors.secondary }]}>
-            <Ionicons name="shield" size={36} color={colors.white} />
+          <View style={[styles.roleIconBox, { backgroundColor: colors.accent + '15' }]}>
+            <Ionicons name="shield-checkmark" size={32} color={colors.accent} />
           </View>
-          <View style={styles.roleInfo}>
-            <Text style={styles.roleTitle}>{t('admin', language)}</Text>
-            <Text style={styles.roleDesc}>
-              {language === 'en' ? 'Manage services, view analytics, push notices' : 'सेवा प्रबंधन, विश्लेषण, सूचनाएं'}
-            </Text>
+          <View style={styles.roleContent}>
+            <Text style={styles.roleTitle}>{t('iAmAdmin', language)}</Text>
+            <Text style={styles.roleDesc}>{t('adminDesc', language)}</Text>
           </View>
-          <Ionicons name="chevron-forward" size={24} color={colors.gray} />
+          <View style={[styles.arrowBox, { backgroundColor: colors.accent + '15' }]}>
+            <Ionicons name="arrow-forward" size={20} color={colors.accent} />
+          </View>
         </TouchableOpacity>
-      </View>
 
-      {/* Footer */}
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>Government of India Initiative</Text>
-        <Text style={styles.versionText}>v1.0.0</Text>
+        {/* Footer */}
+        <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.lg }]}>
+          <Ionicons name="shield-checkmark" size={16} color={colors.textSecondary} />
+          <Text style={styles.footerText}>{t('governmentOf', language)}</Text>
+        </View>
       </View>
     </View>
   );
@@ -94,110 +144,144 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.primary,
   },
-  langToggle: {
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    marginTop: spacing.lg,
+    fontSize: fontSize.md,
+    color: colors.textWhite,
+  },
+  topSection: {
+    flex: 1,
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+  },
+  langButton: {
     position: 'absolute',
     top: 50,
-    right: 20,
-    backgroundColor: colors.white,
+    right: spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    borderRadius: borderRadius.sm,
-    zIndex: 10,
+    borderRadius: borderRadius.full,
+    gap: spacing.xs,
   },
   langText: {
     fontSize: fontSize.sm,
     fontWeight: '600',
     color: colors.primary,
   },
-  logoSection: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: spacing.xxl,
-  },
   logoContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: colors.primaryLight,
+    alignItems: 'center',
+    marginTop: spacing.xxxl,
+  },
+  logoCircle: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.md,
+    marginBottom: spacing.lg,
   },
-  appName: {
-    fontSize: 42,
+  appTitle: {
+    fontSize: fontSize.hero,
     fontWeight: 'bold',
-    color: colors.white,
-    letterSpacing: 4,
+    color: colors.textWhite,
+    letterSpacing: 3,
   },
   tagline: {
-    fontSize: fontSize.sm,
-    color: colors.white,
-    opacity: 0.9,
-    textAlign: 'center',
-    paddingHorizontal: spacing.xl,
-    marginTop: spacing.sm,
-  },
-  roleSection: {
-    backgroundColor: colors.background,
-    borderTopLeftRadius: borderRadius.xl,
-    borderTopRightRadius: borderRadius.xl,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.xxl,
-  },
-  selectText: {
     fontSize: fontSize.md,
-    color: colors.gray,
+    color: colors.textWhite,
+    opacity: 0.85,
+    marginTop: spacing.xs,
     textAlign: 'center',
-    marginBottom: spacing.lg,
+  },
+  iconsRow: {
+    flexDirection: 'row',
+    marginTop: spacing.xxl,
+    gap: spacing.md,
+  },
+  serviceIconSmall: {
+    width: 52,
+    height: 52,
+    borderRadius: borderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bottomSection: {
+    backgroundColor: colors.background,
+    borderTopLeftRadius: borderRadius.xxl,
+    borderTopRightRadius: borderRadius.xxl,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.xxl,
+    marginTop: -spacing.xxl,
+  },
+  welcomeText: {
+    fontSize: fontSize.xl,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    textAlign: 'center',
+  },
+  subtitleText: {
+    fontSize: fontSize.md,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: spacing.xs,
+    marginBottom: spacing.xxl,
   },
   roleCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
     marginBottom: spacing.md,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  roleIcon: {
-    width: 64,
-    height: 64,
+  roleIconBox: {
+    width: 60,
+    height: 60,
     borderRadius: borderRadius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  roleInfo: {
+  roleContent: {
     flex: 1,
-    marginLeft: spacing.md,
+    marginLeft: spacing.lg,
   },
   roleTitle: {
     fontSize: fontSize.lg,
     fontWeight: '600',
-    color: colors.black,
+    color: colors.textPrimary,
   },
   roleDesc: {
     fontSize: fontSize.sm,
-    color: colors.gray,
+    color: colors.textSecondary,
     marginTop: 2,
+  },
+  arrowBox: {
+    width: 40,
+    height: 40,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.primary + '15',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   footer: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingBottom: spacing.lg,
-    backgroundColor: colors.background,
+    justifyContent: 'center',
+    marginTop: spacing.xl,
+    gap: spacing.xs,
   },
   footerText: {
-    fontSize: fontSize.xs,
-    color: colors.gray,
-  },
-  versionText: {
-    fontSize: fontSize.xs,
-    color: colors.grayLight,
-    marginTop: 2,
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
   },
 });
