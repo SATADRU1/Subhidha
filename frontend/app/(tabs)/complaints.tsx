@@ -7,17 +7,18 @@ import {
   RefreshControl,
   TouchableOpacity,
   ActivityIndicator,
+  StatusBar,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, spacing, fontSize, borderRadius } from '@/src/constants/theme';
+import { colors, spacing, fontSize, borderRadius, shadows } from '@/src/constants/theme';
 import { useAuth } from '@/src/contexts/AuthContext';
-import { ComplaintCard } from '@/src/components/ComplaintCard';
 import { complaintsAPI } from '@/src/services/api';
-import { t } from '@/src/utils/helpers';
+import { t, formatDateTime, getStatusColor, getStatusLabel, getServiceColor } from '@/src/utils/helpers';
 
-type TabType = 'all' | 'pending' | 'resolved';
+type TabType = 'all' | 'active' | 'resolved';
 
 export default function ComplaintsScreen() {
   const router = useRouter();
@@ -40,9 +41,7 @@ export default function ComplaintsScreen() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchComplaints();
-  }, [fetchComplaints]);
+  useEffect(() => { fetchComplaints(); }, [fetchComplaints]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -50,34 +49,69 @@ export default function ComplaintsScreen() {
     setRefreshing(false);
   };
 
-  const filteredComplaints = complaints.filter((complaint) => {
-    if (activeTab === 'pending') {
-      return complaint.status === 'submitted' || complaint.status === 'in_progress';
-    }
-    if (activeTab === 'resolved') {
-      return complaint.status === 'resolved' || complaint.status === 'closed';
-    }
+  const filteredComplaints = complaints.filter((c) => {
+    if (activeTab === 'active') return c.status === 'submitted' || c.status === 'in_progress';
+    if (activeTab === 'resolved') return c.status === 'resolved' || c.status === 'closed';
     return true;
   });
 
-  const tabs: { key: TabType; label: string }[] = [
-    { key: 'all', label: language === 'en' ? 'All' : 'सभी' },
-    { key: 'pending', label: t('pending', language) },
-    { key: 'resolved', label: t('resolved', language) },
+  const activeCount = complaints.filter(c => c.status === 'submitted' || c.status === 'in_progress').length;
+
+  const tabs: { key: TabType; label: string; count: number }[] = [
+    { key: 'all', label: language === 'en' ? 'All' : 'सभी', count: complaints.length },
+    { key: 'active', label: language === 'en' ? 'Active' : 'सक्रिय', count: activeCount },
+    { key: 'resolved', label: t('statusResolved', language), count: complaints.length - activeCount },
   ];
+
+  const getCategoryIcon = (category: string) => {
+    const icons: Record<string, string> = {
+      electricity: 'flash',
+      water: 'water',
+      gas: 'flame',
+      sanitation: 'leaf',
+      municipal: 'business',
+      other: 'ellipse',
+    };
+    return icons[category] || 'document-text';
+  };
 
   return (
     <View style={styles.container}>
+      <StatusBar barStyle="light-content" />
+      
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + spacing.md }]}>
-        <Text style={styles.headerTitle}>{t('complaints', language)}</Text>
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => router.push('/new-complaint')}
-        >
-          <Ionicons name="add" size={24} color={colors.white} />
-        </TouchableOpacity>
-      </View>
+      <LinearGradient
+        colors={[colors.primary, colors.primaryDark]}
+        style={[styles.header, { paddingTop: insets.top + spacing.md }]}
+      >
+        <View style={styles.headerRow}>
+          <Text style={styles.headerTitle}>{t('myComplaints', language)}</Text>
+          <TouchableOpacity
+            style={styles.addBtn}
+            onPress={() => router.push('/new-complaint')}
+          >
+            <Ionicons name="add" size={24} color={colors.textWhite} />
+          </TouchableOpacity>
+        </View>
+        
+        {/* Summary */}
+        <View style={styles.summaryRow}>
+          <View style={styles.summaryItem}>
+            <Text style={styles.summaryValue}>{complaints.length}</Text>
+            <Text style={styles.summaryLabel}>{language === 'en' ? 'Total' : 'कुल'}</Text>
+          </View>
+          <View style={styles.summaryDivider} />
+          <View style={styles.summaryItem}>
+            <Text style={[styles.summaryValue, { color: colors.warning }]}>{activeCount}</Text>
+            <Text style={styles.summaryLabel}>{language === 'en' ? 'Active' : 'सक्रिय'}</Text>
+          </View>
+          <View style={styles.summaryDivider} />
+          <View style={styles.summaryItem}>
+            <Text style={[styles.summaryValue, { color: colors.success }]}>{complaints.length - activeCount}</Text>
+            <Text style={styles.summaryLabel}>{t('statusResolved', language)}</Text>
+          </View>
+        </View>
+      </LinearGradient>
 
       {/* Tabs */}
       <View style={styles.tabsContainer}>
@@ -88,7 +122,7 @@ export default function ComplaintsScreen() {
             onPress={() => setActiveTab(tab.key)}
           >
             <Text style={[styles.tabText, activeTab === tab.key && styles.tabTextActive]}>
-              {tab.label}
+              {tab.label} ({tab.count})
             </Text>
           </TouchableOpacity>
         ))}
@@ -101,36 +135,94 @@ export default function ComplaintsScreen() {
       ) : (
         <ScrollView
           style={styles.content}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           showsVerticalScrollIndicator={false}
         >
           {filteredComplaints.length === 0 ? (
             <View style={styles.emptyContainer}>
-              <Ionicons name="document-text-outline" size={64} color={colors.grayLight} />
-              <Text style={styles.emptyText}>
-                {language === 'en' ? 'No complaints found' : 'कोई शिकायत नहीं मिली'}
-              </Text>
+              <View style={styles.emptyIcon}>
+                <Ionicons name="document-text-outline" size={48} color={colors.textLight} />
+              </View>
+              <Text style={styles.emptyTitle}>{t('noComplaints', language)}</Text>
+              <Text style={styles.emptyText}>{t('noComplaintsDesc', language)}</Text>
               <TouchableOpacity
-                style={styles.fileButton}
+                style={styles.fileBtn}
                 onPress={() => router.push('/new-complaint')}
               >
-                <Text style={styles.fileButtonText}>{t('fileComplaint', language)}</Text>
+                <Ionicons name="add-circle" size={20} color={colors.textWhite} />
+                <Text style={styles.fileBtnText}>{t('newComplaint', language)}</Text>
               </TouchableOpacity>
             </View>
           ) : (
             filteredComplaints.map((complaint) => (
-              <ComplaintCard
+              <TouchableOpacity
                 key={complaint.id}
-                complaint={complaint}
+                style={styles.complaintCard}
                 onPress={() => router.push(`/complaint-details?id=${complaint.id}`)}
-              />
+                activeOpacity={0.7}
+              >
+                <View style={styles.cardHeader}>
+                  <View style={[styles.categoryIcon, { backgroundColor: getServiceColor(complaint.category) + '15' }]}>
+                    <Ionicons 
+                      name={getCategoryIcon(complaint.category) as any} 
+                      size={22} 
+                      color={getServiceColor(complaint.category)} 
+                    />
+                  </View>
+                  <View style={styles.cardInfo}>
+                    <Text style={styles.complaintNumber}>{complaint.complaint_number}</Text>
+                    <Text style={styles.categoryText}>{complaint.category.toUpperCase()}</Text>
+                  </View>
+                  <View style={[styles.statusBadge, { backgroundColor: getStatusColor(complaint.status) + '15' }]}>
+                    <Text style={[styles.statusText, { color: getStatusColor(complaint.status) }]}>
+                      {getStatusLabel(complaint.status, language)}
+                    </Text>
+                  </View>
+                </View>
+                
+                <Text style={styles.description} numberOfLines={2}>
+                  {complaint.description}
+                </Text>
+                
+                <View style={styles.cardFooter}>
+                  <View style={styles.dateRow}>
+                    <Ionicons name="time-outline" size={14} color={colors.textSecondary} />
+                    <Text style={styles.dateText}>{formatDateTime(complaint.created_at)}</Text>
+                  </View>
+                  {complaint.priority && (
+                    <View style={[
+                      styles.priorityBadge, 
+                      { backgroundColor: complaint.priority === 'urgent' || complaint.priority === 'high' 
+                        ? colors.error + '15' 
+                        : colors.warning + '15' 
+                      }
+                    ]}>
+                      <Text style={[
+                        styles.priorityText,
+                        { color: complaint.priority === 'urgent' || complaint.priority === 'high'
+                          ? colors.error
+                          : colors.warning
+                        }
+                      ]}>
+                        {complaint.priority.toUpperCase()}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </TouchableOpacity>
             ))
           )}
-          <View style={{ height: spacing.xxl }} />
+          <View style={{ height: spacing.xxxl }} />
         </ScrollView>
       )}
+
+      {/* Floating Action Button */}
+      <TouchableOpacity
+        style={[styles.fab, { bottom: insets.bottom + 80 }]}
+        onPress={() => router.push('/new-complaint')}
+      >
+        <Ionicons name="add" size={28} color={colors.textWhite} />
+      </TouchableOpacity>
     </View>
   );
 }
@@ -141,33 +233,61 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   header: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xl,
+  },
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: spacing.lg,
   },
   headerTitle: {
     fontSize: fontSize.xl,
-    fontWeight: '600',
-    color: colors.white,
-    textAlign: 'center',
-    flex: 1,
+    fontWeight: '700',
+    color: colors.textWhite,
   },
-  addButton: {
+  addBtn: {
     position: 'absolute',
-    right: spacing.md,
-    bottom: spacing.md,
-    padding: spacing.xs,
+    right: 0,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: borderRadius.lg,
+    paddingVertical: spacing.lg,
+  },
+  summaryItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  summaryDivider: {
+    width: 1,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+  },
+  summaryValue: {
+    fontSize: fontSize.xxl,
+    fontWeight: '700',
+    color: colors.textWhite,
+  },
+  summaryLabel: {
+    fontSize: fontSize.sm,
+    color: colors.textWhite,
+    opacity: 0.8,
   },
   tabsContainer: {
     flexDirection: 'row',
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: colors.grayLighter,
+    borderBottomColor: colors.border,
   },
   tab: {
     flex: 1,
@@ -180,15 +300,15 @@ const styles = StyleSheet.create({
   },
   tabText: {
     fontSize: fontSize.sm,
-    color: colors.gray,
     fontWeight: '500',
+    color: colors.textSecondary,
   },
   tabTextActive: {
-    color: colors.white,
+    color: colors.textWhite,
   },
   content: {
     flex: 1,
-    padding: spacing.md,
+    padding: spacing.lg,
   },
   loadingContainer: {
     flex: 1,
@@ -196,26 +316,125 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   emptyContainer: {
-    flex: 1,
+    alignItems: 'center',
+    paddingVertical: spacing.xxxl,
+  },
+  emptyIcon: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: colors.divider,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: spacing.xxl * 2,
+    marginBottom: spacing.lg,
+  },
+  emptyTitle: {
+    fontSize: fontSize.lg,
+    fontWeight: '600',
+    color: colors.textPrimary,
   },
   emptyText: {
     fontSize: fontSize.md,
-    color: colors.gray,
-    marginTop: spacing.md,
-    marginBottom: spacing.lg,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
+    marginBottom: spacing.xl,
   },
-  fileButton: {
+  fileBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: colors.primary,
-    paddingVertical: spacing.md,
     paddingHorizontal: spacing.xl,
-    borderRadius: borderRadius.sm,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.full,
+    gap: spacing.sm,
   },
-  fileButtonText: {
-    color: colors.white,
+  fileBtnText: {
     fontSize: fontSize.md,
     fontWeight: '600',
+    color: colors.textWhite,
+  },
+  complaintCard: {
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    ...shadows.medium,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  categoryIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: borderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardInfo: {
+    flex: 1,
+    marginLeft: spacing.md,
+  },
+  complaintNumber: {
+    fontSize: fontSize.md,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  categoryText: {
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
+  },
+  statusBadge: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.full,
+  },
+  statusText: {
+    fontSize: fontSize.xs,
+    fontWeight: '600',
+  },
+  description: {
+    fontSize: fontSize.md,
+    color: colors.textSecondary,
+    marginBottom: spacing.sm,
+    lineHeight: 20,
+  },
+  cardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: colors.divider,
+    paddingTop: spacing.sm,
+  },
+  dateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  dateText: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
+  },
+  priorityBadge: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: borderRadius.sm,
+  },
+  priorityText: {
+    fontSize: fontSize.xs,
+    fontWeight: '600',
+  },
+  fab: {
+    position: 'absolute',
+    right: spacing.lg,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.large,
   },
 });
