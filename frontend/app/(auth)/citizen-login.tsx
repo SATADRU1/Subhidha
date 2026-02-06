@@ -10,9 +10,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  StatusBar,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, fontSize, borderRadius } from '@/src/constants/theme';
 import { useAuth } from '@/src/contexts/AuthContext';
 import { authAPI } from '@/src/services/api';
@@ -20,30 +23,27 @@ import { t } from '@/src/utils/helpers';
 
 export default function CitizenLoginScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { login, language, setLanguage } = useAuth();
   
-  const [step, setStep] = useState<'mobile' | 'otp' | 'details'>('mobile');
+  const [step, setStep] = useState<'mobile' | 'otp'>('mobile');
   const [mobile, setMobile] = useState('');
   const [otp, setOtp] = useState('');
   const [name, setName] = useState('');
-  const [aadhaar, setAadhaar] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [otpHint, setOtpHint] = useState('');
 
   const handleSendOTP = async () => {
     if (mobile.length < 10) {
-      Alert.alert('Error', 'Please enter a valid 10-digit mobile number');
+      Alert.alert(t('error', language), 'Please enter a valid 10-digit mobile number');
       return;
     }
-
     setIsLoading(true);
     try {
-      const response = await authAPI.sendOTP(mobile);
-      setOtpHint(response.data.hint || '');
+      await authAPI.sendOTP(mobile);
       setStep('otp');
-      Alert.alert('OTP Sent', response.data.hint || 'OTP has been sent to your mobile');
+      Alert.alert(t('success', language), 'OTP sent! Use 123456 for testing');
     } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.detail || 'Failed to send OTP');
+      Alert.alert(t('error', language), error.response?.data?.detail || 'Failed to send OTP');
     } finally {
       setIsLoading(false);
     }
@@ -51,37 +51,24 @@ export default function CitizenLoginScreen() {
 
   const handleVerifyOTP = async () => {
     if (otp.length !== 6) {
-      Alert.alert('Error', 'Please enter a valid 6-digit OTP');
+      Alert.alert(t('error', language), 'Please enter a valid 6-digit OTP');
       return;
     }
-
     setIsLoading(true);
     try {
-      const response = await authAPI.verifyOTP({
-        mobile,
-        otp,
-        name: name || undefined,
-        aadhaar_number: aadhaar || undefined,
-        language,
-      });
-      
+      const response = await authAPI.verifyOTP({ mobile, otp, name: name || undefined, language });
       await login(response.data.access_token, {
         id: response.data.user_id,
         name: response.data.user_name || name,
         mobile,
         type: 'citizen',
       });
-      
       router.replace('/(tabs)');
     } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.detail || 'Invalid OTP');
+      Alert.alert(t('error', language), error.response?.data?.detail || 'Invalid OTP');
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const toggleLanguage = () => {
-    setLanguage(language === 'en' ? 'hi' : 'en');
   };
 
   return (
@@ -89,130 +76,138 @@ export default function CitizenLoginScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
+      <StatusBar barStyle="light-content" />
+      
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={colors.white} />
+      <LinearGradient
+        colors={[colors.primary, colors.primaryDark]}
+        style={[styles.header, { paddingTop: insets.top + spacing.md }]}
+      >
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <Ionicons name="arrow-back" size={24} color={colors.textWhite} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('citizen', language)} {t('login', language)}</Text>
-        <TouchableOpacity onPress={toggleLanguage} style={styles.langButton}>
+        <Text style={styles.headerTitle}>{t('iAmCitizen', language)}</Text>
+        <TouchableOpacity 
+          style={styles.langBtn}
+          onPress={() => setLanguage(language === 'en' ? 'hi' : 'en')}
+        >
           <Text style={styles.langText}>{language === 'en' ? 'हिं' : 'EN'}</Text>
         </TouchableOpacity>
-      </View>
+      </LinearGradient>
 
-      <ScrollView style={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView 
+        style={styles.content} 
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         {/* Step Indicator */}
         <View style={styles.stepIndicator}>
-          <View style={[styles.stepDot, step !== 'mobile' && styles.stepDotCompleted]} />
-          <View style={[styles.stepLine, step !== 'mobile' && styles.stepLineCompleted]} />
-          <View style={[styles.stepDot, step === 'otp' && styles.stepDotActive]} />
+          <View style={[styles.stepCircle, styles.stepActive]}>
+            <Text style={styles.stepNumber}>1</Text>
+          </View>
+          <View style={[styles.stepLine, step === 'otp' && styles.stepLineActive]} />
+          <View style={[styles.stepCircle, step === 'otp' && styles.stepActive]}>
+            <Text style={[styles.stepNumber, step !== 'otp' && styles.stepNumberInactive]}>2</Text>
+          </View>
         </View>
 
-        {step === 'mobile' && (
-          <View style={styles.formSection}>
-            <View style={styles.iconCircle}>
-              <Ionicons name="phone-portrait" size={48} color={colors.primary} />
-            </View>
-            <Text style={styles.title}>{t('enterMobile', language)}</Text>
-            <Text style={styles.subtitle}>
-              {language === 'en' 
-                ? 'We will send you an OTP to verify your number'
-                : 'हम आपके नंबर को सत्यापित करने के लिए OTP भेजेंगे'}
-            </Text>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.prefix}>+91</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Mobile Number"
-                keyboardType="phone-pad"
-                maxLength={10}
-                value={mobile}
-                onChangeText={setMobile}
-                placeholderTextColor={colors.grayLight}
-              />
-            </View>
-
-            <TouchableOpacity
-              style={[styles.button, mobile.length < 10 && styles.buttonDisabled]}
-              onPress={handleSendOTP}
-              disabled={isLoading || mobile.length < 10}
-            >
-              {isLoading ? (
-                <ActivityIndicator color={colors.white} />
-              ) : (
-                <Text style={styles.buttonText}>{t('sendOTP', language)}</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {step === 'otp' && (
-          <View style={styles.formSection}>
-            <View style={styles.iconCircle}>
-              <Ionicons name="keypad" size={48} color={colors.primary} />
-            </View>
-            <Text style={styles.title}>{t('enterOTP', language)}</Text>
-            <Text style={styles.subtitle}>
-              {language === 'en'
-                ? `Enter the 6-digit OTP sent to +91 ${mobile}`
-                : `+91 ${mobile} पर भेजा गया 6 अंकों का OTP दर्ज करें`}
-            </Text>
-            {otpHint && <Text style={styles.hint}>{otpHint}</Text>}
-
-            <TextInput
-              style={styles.otpInput}
-              placeholder="- - - - - -"
-              keyboardType="number-pad"
-              maxLength={6}
-              value={otp}
-              onChangeText={setOtp}
-              textAlign="center"
-              placeholderTextColor={colors.grayLight}
-            />
-
-            {/* Optional Details */}
-            <Text style={styles.optionalTitle}>
-              {language === 'en' ? 'Optional Details' : 'वैकल्पिक विवरण'}
-            </Text>
-
-            <TextInput
-              style={styles.textInput}
-              placeholder={t('enterName', language)}
-              value={name}
-              onChangeText={setName}
-              placeholderTextColor={colors.grayLight}
-            />
-
-            <TextInput
-              style={styles.textInput}
-              placeholder={t('enterAadhaar', language)}
-              keyboardType="number-pad"
-              maxLength={12}
-              value={aadhaar}
-              onChangeText={setAadhaar}
-              placeholderTextColor={colors.grayLight}
-            />
-
-            <TouchableOpacity
-              style={[styles.button, otp.length !== 6 && styles.buttonDisabled]}
-              onPress={handleVerifyOTP}
-              disabled={isLoading || otp.length !== 6}
-            >
-              {isLoading ? (
-                <ActivityIndicator color={colors.white} />
-              ) : (
-                <Text style={styles.buttonText}>{t('verifyOTP', language)}</Text>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity onPress={() => setStep('mobile')} style={styles.linkButton}>
-              <Text style={styles.linkText}>
-                {language === 'en' ? 'Change Mobile Number' : 'मोबाइल नंबर बदलें'}
+        {/* Form Card */}
+        <View style={styles.formCard}>
+          {step === 'mobile' ? (
+            <>
+              <View style={styles.iconCircle}>
+                <Ionicons name="phone-portrait" size={40} color={colors.primary} />
+              </View>
+              <Text style={styles.title}>{t('enterMobileNumber', language)}</Text>
+              <Text style={styles.subtitle}>
+                {language === 'en' 
+                  ? 'We will send you an OTP to verify'
+                  : 'हम आपको सत्यापित करने के लिए OTP भेजेंगे'}
               </Text>
-            </TouchableOpacity>
-          </View>
-        )}
+
+              <View style={styles.phoneInput}>
+                <View style={styles.countryCode}>
+                  <Text style={styles.countryCodeText}>+91</Text>
+                </View>
+                <TextInput
+                  style={styles.phoneField}
+                  placeholder={t('mobileNumber', language)}
+                  keyboardType="phone-pad"
+                  maxLength={10}
+                  value={mobile}
+                  onChangeText={setMobile}
+                  placeholderTextColor={colors.textLight}
+                />
+              </View>
+
+              <TouchableOpacity
+                style={[styles.primaryBtn, mobile.length < 10 && styles.btnDisabled]}
+                onPress={handleSendOTP}
+                disabled={isLoading || mobile.length < 10}
+              >
+                {isLoading ? (
+                  <ActivityIndicator color={colors.textWhite} />
+                ) : (
+                  <Text style={styles.primaryBtnText}>{t('sendOTP', language)}</Text>
+                )}
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <View style={styles.iconCircle}>
+                <Ionicons name="keypad" size={40} color={colors.primary} />
+              </View>
+              <Text style={styles.title}>{t('enterOTP', language)}</Text>
+              <Text style={styles.subtitle}>
+                {t('otpSentTo', language)} +91 {mobile}
+              </Text>
+
+              <TextInput
+                style={styles.otpInput}
+                placeholder="- - - - - -"
+                keyboardType="number-pad"
+                maxLength={6}
+                value={otp}
+                onChangeText={setOtp}
+                textAlign="center"
+                placeholderTextColor={colors.textLight}
+              />
+
+              <Text style={styles.optionalLabel}>{t('yourName', language)}</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder={t('name', language)}
+                value={name}
+                onChangeText={setName}
+                placeholderTextColor={colors.textLight}
+              />
+
+              <TouchableOpacity
+                style={[styles.primaryBtn, otp.length !== 6 && styles.btnDisabled]}
+                onPress={handleVerifyOTP}
+                disabled={isLoading || otp.length !== 6}
+              >
+                {isLoading ? (
+                  <ActivityIndicator color={colors.textWhite} />
+                ) : (
+                  <Text style={styles.primaryBtnText}>{t('verifyAndContinue', language)}</Text>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={() => setStep('mobile')} style={styles.linkBtn}>
+                <Text style={styles.linkText}>{t('changeMobile', language)}</Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
+
+        {/* Test Hint */}
+        <View style={styles.hintBox}>
+          <Ionicons name="information-circle" size={18} color={colors.info} />
+          <Text style={styles.hintText}>
+            {language === 'en' ? 'For testing, use OTP: 123456' : 'परीक्षण के लिए OTP: 123456'}
+          </Text>
+        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -224,28 +219,31 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   header: {
-    backgroundColor: colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    paddingTop: spacing.xxl + spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.lg,
   },
-  backButton: {
-    padding: spacing.xs,
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: {
     flex: 1,
     fontSize: fontSize.lg,
     fontWeight: '600',
-    color: colors.white,
+    color: colors.textWhite,
     textAlign: 'center',
   },
-  langButton: {
-    backgroundColor: colors.white,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.sm,
+  langBtn: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.full,
   },
   langText: {
     fontSize: fontSize.sm,
@@ -260,133 +258,152 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.xl,
+    marginVertical: spacing.xl,
   },
-  stepDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: colors.grayLighter,
+  stepCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  stepDotActive: {
+  stepActive: {
     backgroundColor: colors.primary,
   },
-  stepDotCompleted: {
-    backgroundColor: colors.success,
+  stepNumber: {
+    fontSize: fontSize.md,
+    fontWeight: '600',
+    color: colors.textWhite,
+  },
+  stepNumberInactive: {
+    color: colors.textSecondary,
   },
   stepLine: {
     width: 60,
-    height: 2,
-    backgroundColor: colors.grayLighter,
+    height: 3,
+    backgroundColor: colors.border,
+    marginHorizontal: spacing.sm,
   },
-  stepLineCompleted: {
-    backgroundColor: colors.success,
+  stepLineActive: {
+    backgroundColor: colors.primary,
   },
-  formSection: {
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
+  formCard: {
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.xl,
+    padding: spacing.xl,
     alignItems: 'center',
   },
   iconCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     backgroundColor: colors.primary + '15',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.md,
+    marginBottom: spacing.lg,
   },
   title: {
     fontSize: fontSize.xl,
-    fontWeight: '600',
-    color: colors.black,
-    marginBottom: spacing.xs,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    textAlign: 'center',
   },
   subtitle: {
-    fontSize: fontSize.sm,
-    color: colors.gray,
+    fontSize: fontSize.md,
+    color: colors.textSecondary,
     textAlign: 'center',
-    marginBottom: spacing.lg,
+    marginTop: spacing.xs,
+    marginBottom: spacing.xl,
   },
-  hint: {
-    fontSize: fontSize.xs,
-    color: colors.success,
-    marginBottom: spacing.md,
-    fontWeight: '600',
-  },
-  inputContainer: {
+  phoneInput: {
     flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.background,
-    borderRadius: borderRadius.sm,
     width: '100%',
-    marginBottom: spacing.lg,
+    marginBottom: spacing.xl,
   },
-  prefix: {
-    paddingHorizontal: spacing.md,
+  countryCode: {
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.lg,
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+  },
+  countryCodeText: {
     fontSize: fontSize.lg,
-    color: colors.black,
     fontWeight: '600',
+    color: colors.textPrimary,
   },
-  input: {
+  phoneField: {
     flex: 1,
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-    paddingRight: spacing.md,
     fontSize: fontSize.lg,
-    color: colors.black,
+    color: colors.textPrimary,
   },
   otpInput: {
-    backgroundColor: colors.background,
-    borderRadius: borderRadius.sm,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    fontSize: fontSize.xxl,
-    fontWeight: '600',
     width: '100%',
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.lg,
+    fontSize: fontSize.xxl,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    letterSpacing: 12,
     marginBottom: spacing.lg,
-    letterSpacing: 8,
-    color: colors.black,
+  },
+  optionalLabel: {
+    alignSelf: 'flex-start',
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
   },
   textInput: {
+    width: '100%',
     backgroundColor: colors.background,
-    borderRadius: borderRadius.sm,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
     fontSize: fontSize.md,
+    color: colors.textPrimary,
+    marginBottom: spacing.xl,
+  },
+  primaryBtn: {
     width: '100%',
-    marginBottom: spacing.md,
-    color: colors.black,
-  },
-  optionalTitle: {
-    fontSize: fontSize.sm,
-    color: colors.gray,
-    alignSelf: 'flex-start',
-    marginBottom: spacing.sm,
-    marginTop: spacing.sm,
-  },
-  button: {
     backgroundColor: colors.primary,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.xl,
-    borderRadius: borderRadius.sm,
-    width: '100%',
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.lg,
     alignItems: 'center',
-    marginTop: spacing.sm,
   },
-  buttonDisabled: {
-    backgroundColor: colors.grayLight,
+  btnDisabled: {
+    backgroundColor: colors.disabled,
   },
-  buttonText: {
-    color: colors.white,
+  primaryBtnText: {
     fontSize: fontSize.md,
     fontWeight: '600',
+    color: colors.textWhite,
   },
-  linkButton: {
+  linkBtn: {
     marginTop: spacing.lg,
   },
   linkText: {
+    fontSize: fontSize.md,
     color: colors.primary,
+    fontWeight: '500',
+  },
+  hintBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.info + '15',
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    marginTop: spacing.xl,
+  },
+  hintText: {
+    flex: 1,
     fontSize: fontSize.sm,
+    color: colors.info,
+    marginLeft: spacing.sm,
   },
 });

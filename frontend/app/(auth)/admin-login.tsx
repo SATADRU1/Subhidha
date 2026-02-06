@@ -9,9 +9,12 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  StatusBar,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, fontSize, borderRadius } from '@/src/constants/theme';
 import { useAuth } from '@/src/contexts/AuthContext';
 import { authAPI } from '@/src/services/api';
@@ -19,6 +22,7 @@ import { t } from '@/src/utils/helpers';
 
 export default function AdminLoginScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { login, language, setLanguage } = useAuth();
   
   const [username, setUsername] = useState('');
@@ -28,30 +32,23 @@ export default function AdminLoginScreen() {
 
   const handleLogin = async () => {
     if (!username || !password) {
-      Alert.alert('Error', 'Please enter username and password');
+      Alert.alert(t('error', language), 'Please enter username and password');
       return;
     }
-
     setIsLoading(true);
     try {
       const response = await authAPI.adminLogin({ username, password });
-      
       await login(response.data.access_token, {
         id: response.data.user_id,
         name: response.data.user_name,
         type: 'admin',
       });
-      
       router.replace('/(admin)');
     } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.detail || 'Invalid credentials');
+      Alert.alert(t('error', language), error.response?.data?.detail || 'Invalid credentials');
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const toggleLanguage = () => {
-    setLanguage(language === 'en' ? 'hi' : 'en');
   };
 
   return (
@@ -59,80 +56,92 @@ export default function AdminLoginScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
+      <StatusBar barStyle="light-content" />
+      
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={colors.white} />
+      <LinearGradient
+        colors={[colors.accent, '#008577']}
+        style={[styles.header, { paddingTop: insets.top + spacing.md }]}
+      >
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <Ionicons name="arrow-back" size={24} color={colors.textWhite} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('admin', language)} {t('login', language)}</Text>
-        <TouchableOpacity onPress={toggleLanguage} style={styles.langButton}>
+        <Text style={styles.headerTitle}>{t('adminLogin', language)}</Text>
+        <TouchableOpacity 
+          style={styles.langBtn}
+          onPress={() => setLanguage(language === 'en' ? 'hi' : 'en')}
+        >
           <Text style={styles.langText}>{language === 'en' ? 'हिं' : 'EN'}</Text>
         </TouchableOpacity>
-      </View>
+      </LinearGradient>
 
       <View style={styles.content}>
-        <View style={styles.formSection}>
+        {/* Form Card */}
+        <View style={styles.formCard}>
           <View style={styles.iconCircle}>
-            <Ionicons name="shield-checkmark" size={48} color={colors.secondary} />
+            <Ionicons name="shield-checkmark" size={40} color={colors.accent} />
           </View>
-          <Text style={styles.title}>{t('admin', language)} Portal</Text>
+          <Text style={styles.title}>{t('adminLogin', language)}</Text>
           <Text style={styles.subtitle}>
             {language === 'en' 
-              ? 'Enter your admin credentials to continue'
-              : 'जारी रखने के लिए अपने क्रेडेंशियल दर्ज करें'}
+              ? 'Enter your admin credentials'
+              : 'अपने प्रशासक क्रेडेंशियल दर्ज करें'}
           </Text>
 
-          <View style={styles.inputContainer}>
-            <Ionicons name="person" size={20} color={colors.gray} style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder={t('username', language)}
-              autoCapitalize="none"
-              value={username}
-              onChangeText={setUsername}
-              placeholderTextColor={colors.grayLight}
-            />
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Ionicons name="lock-closed" size={20} color={colors.gray} style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder={t('password', language)}
-              secureTextEntry={!showPassword}
-              value={password}
-              onChangeText={setPassword}
-              placeholderTextColor={colors.grayLight}
-            />
-            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-              <Ionicons 
-                name={showPassword ? 'eye-off' : 'eye'} 
-                size={20} 
-                color={colors.gray} 
+          <View style={styles.inputGroup}>
+            <View style={styles.inputWrapper}>
+              <Ionicons name="person" size={20} color={colors.textSecondary} />
+              <TextInput
+                style={styles.input}
+                placeholder={t('username', language)}
+                autoCapitalize="none"
+                value={username}
+                onChangeText={setUsername}
+                placeholderTextColor={colors.textLight}
               />
-            </TouchableOpacity>
-          </View>
+            </View>
 
-          <View style={styles.hintBox}>
-            <Ionicons name="information-circle" size={16} color={colors.info} />
-            <Text style={styles.hintText}>
-              {language === 'en' 
-                ? 'Default: admin / admin123'
-                : 'डिफ़ॉल्ट: admin / admin123'}
-            </Text>
+            <View style={styles.inputWrapper}>
+              <Ionicons name="lock-closed" size={20} color={colors.textSecondary} />
+              <TextInput
+                style={styles.input}
+                placeholder={t('password', language)}
+                secureTextEntry={!showPassword}
+                value={password}
+                onChangeText={setPassword}
+                placeholderTextColor={colors.textLight}
+              />
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                <Ionicons 
+                  name={showPassword ? 'eye-off' : 'eye'} 
+                  size={20} 
+                  color={colors.textSecondary} 
+                />
+              </TouchableOpacity>
+            </View>
           </View>
 
           <TouchableOpacity
-            style={[styles.button, (!username || !password) && styles.buttonDisabled]}
+            style={[styles.primaryBtn, (!username || !password) && styles.btnDisabled]}
             onPress={handleLogin}
             disabled={isLoading || !username || !password}
           >
             {isLoading ? (
-              <ActivityIndicator color={colors.white} />
+              <ActivityIndicator color={colors.textWhite} />
             ) : (
-              <Text style={styles.buttonText}>{t('login', language)}</Text>
+              <Text style={styles.primaryBtnText}>{t('login', language)}</Text>
             )}
           </TouchableOpacity>
+        </View>
+
+        {/* Test Hint */}
+        <View style={styles.hintBox}>
+          <Ionicons name="information-circle" size={18} color={colors.info} />
+          <Text style={styles.hintText}>
+            {language === 'en' 
+              ? 'Default credentials: admin / admin123'
+              : 'डिफ़ॉल्ट: admin / admin123'}
+          </Text>
         </View>
       </View>
     </KeyboardAvoidingView>
@@ -145,112 +154,116 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   header: {
-    backgroundColor: colors.secondary,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    paddingTop: spacing.xxl + spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.lg,
   },
-  backButton: {
-    padding: spacing.xs,
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: {
     flex: 1,
     fontSize: fontSize.lg,
     fontWeight: '600',
-    color: colors.white,
+    color: colors.textWhite,
     textAlign: 'center',
   },
-  langButton: {
-    backgroundColor: colors.white,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.sm,
+  langBtn: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.full,
   },
   langText: {
     fontSize: fontSize.sm,
     fontWeight: '600',
-    color: colors.secondary,
+    color: colors.accent,
   },
   content: {
     flex: 1,
     padding: spacing.lg,
     justifyContent: 'center',
   },
-  formSection: {
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
+  formCard: {
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.xl,
+    padding: spacing.xl,
     alignItems: 'center',
   },
   iconCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: colors.secondary + '15',
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: colors.accent + '15',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.md,
+    marginBottom: spacing.lg,
   },
   title: {
     fontSize: fontSize.xl,
-    fontWeight: '600',
-    color: colors.black,
-    marginBottom: spacing.xs,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    textAlign: 'center',
   },
   subtitle: {
-    fontSize: fontSize.sm,
-    color: colors.gray,
+    fontSize: fontSize.md,
+    color: colors.textSecondary,
     textAlign: 'center',
-    marginBottom: spacing.lg,
+    marginTop: spacing.xs,
+    marginBottom: spacing.xl,
   },
-  inputContainer: {
+  inputGroup: {
+    width: '100%',
+    marginBottom: spacing.xl,
+  },
+  inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.background,
-    borderRadius: borderRadius.sm,
-    width: '100%',
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.lg,
     marginBottom: spacing.md,
-    paddingHorizontal: spacing.md,
-  },
-  inputIcon: {
-    marginRight: spacing.sm,
   },
   input: {
     flex: 1,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.md,
     fontSize: fontSize.md,
-    color: colors.black,
+    color: colors.textPrimary,
+  },
+  primaryBtn: {
+    width: '100%',
+    backgroundColor: colors.accent,
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.lg,
+    alignItems: 'center',
+  },
+  btnDisabled: {
+    backgroundColor: colors.disabled,
+  },
+  primaryBtnText: {
+    fontSize: fontSize.md,
+    fontWeight: '600',
+    color: colors.textWhite,
   },
   hintBox: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.info + '15',
-    padding: spacing.sm,
-    borderRadius: borderRadius.sm,
-    width: '100%',
-    marginBottom: spacing.lg,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    marginTop: spacing.xl,
   },
   hintText: {
-    fontSize: fontSize.xs,
+    flex: 1,
+    fontSize: fontSize.sm,
     color: colors.info,
-    marginLeft: spacing.xs,
-  },
-  button: {
-    backgroundColor: colors.secondary,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.xl,
-    borderRadius: borderRadius.sm,
-    width: '100%',
-    alignItems: 'center',
-  },
-  buttonDisabled: {
-    backgroundColor: colors.grayLight,
-  },
-  buttonText: {
-    color: colors.white,
-    fontSize: fontSize.md,
-    fontWeight: '600',
+    marginLeft: spacing.sm,
   },
 });
