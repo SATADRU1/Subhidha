@@ -17,48 +17,63 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, fontSize, borderRadius } from '@/src/constants/theme';
 import { useAuth } from '@/src/contexts/AuthContext';
-import { authAPI } from '@/src/services/api';
+import { isFirebaseConfigured } from '@/src/config/firebase';
 import { t } from '@/src/utils/helpers';
 
 export default function AdminLoginScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { login, language, setLanguage } = useAuth();
-  
-  const [username, setUsername] = useState('');
+  const { loginWithEmail, language, setLanguage, isFirebaseReady } = useAuth();
+
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (!username || !password) {
-      Alert.alert(t('error', language), 'Please enter username and password');
+    if (!email.trim() || !password) {
+      Alert.alert(t('error', language), 'Please enter email and password');
+      return;
+    }
+    if (!isFirebaseReady) {
+      Alert.alert(t('error', language), 'Firebase is not configured. Add your Firebase config to .env');
       return;
     }
     setIsLoading(true);
     try {
-      const response = await authAPI.adminLogin({ username, password });
-      await login(response.data.access_token, {
-        id: response.data.user_id,
-        name: response.data.user_name,
-        type: 'admin',
-      });
+      await loginWithEmail(email.trim(), password);
       router.replace('/(admin)');
-    } catch (error: any) {
-      Alert.alert(t('error', language), error.response?.data?.detail || 'Invalid credentials');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Invalid credentials';
+      Alert.alert(t('error', language), message);
     } finally {
       setIsLoading(false);
     }
   };
 
+  if (!isFirebaseConfigured) {
+    return (
+      <View style={[styles.container, styles.centerContent]}>
+        <StatusBar barStyle="light-content" />
+        <Ionicons name="warning" size={48} color={colors.warning} />
+        <Text style={styles.errorTitle}>Firebase not configured</Text>
+        <Text style={styles.errorText}>
+          Copy .env.example to .env and add your Firebase web app credentials (EXPO_PUBLIC_FIREBASE_*).
+        </Text>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <Text style={styles.backBtnText}>Go back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <StatusBar barStyle="light-content" />
-      
-      {/* Header */}
+
       <LinearGradient
         colors={[colors.accent, '#008577']}
         style={[styles.header, { paddingTop: insets.top + spacing.md }]}
@@ -67,7 +82,7 @@ export default function AdminLoginScreen() {
           <Ionicons name="arrow-back" size={24} color={colors.textWhite} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{t('adminLogin', language)}</Text>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.langBtn}
           onPress={() => setLanguage(language === 'en' ? 'hi' : 'en')}
         >
@@ -76,27 +91,28 @@ export default function AdminLoginScreen() {
       </LinearGradient>
 
       <View style={styles.content}>
-        {/* Form Card */}
         <View style={styles.formCard}>
           <View style={styles.iconCircle}>
             <Ionicons name="shield-checkmark" size={40} color={colors.accent} />
           </View>
           <Text style={styles.title}>{t('adminLogin', language)}</Text>
           <Text style={styles.subtitle}>
-            {language === 'en' 
-              ? 'Enter your admin credentials'
-              : 'अपने प्रशासक क्रेडेंशियल दर्ज करें'}
+            {language === 'en'
+              ? 'Sign in with your Firebase admin email'
+              : 'अपने Firebase ऐडमिन ईमेल से साइन इन करें'}
           </Text>
 
           <View style={styles.inputGroup}>
             <View style={styles.inputWrapper}>
-              <Ionicons name="person" size={20} color={colors.textSecondary} />
+              <Ionicons name="mail" size={20} color={colors.textSecondary} />
               <TextInput
                 style={styles.input}
-                placeholder={t('username', language)}
+                placeholder="Email"
                 autoCapitalize="none"
-                value={username}
-                onChangeText={setUsername}
+                keyboardType="email-address"
+                autoComplete="email"
+                value={email}
+                onChangeText={setEmail}
                 placeholderTextColor={colors.textLight}
               />
             </View>
@@ -107,24 +123,25 @@ export default function AdminLoginScreen() {
                 style={styles.input}
                 placeholder={t('password', language)}
                 secureTextEntry={!showPassword}
+                autoComplete="password"
                 value={password}
                 onChangeText={setPassword}
                 placeholderTextColor={colors.textLight}
               />
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                <Ionicons 
-                  name={showPassword ? 'eye-off' : 'eye'} 
-                  size={20} 
-                  color={colors.textSecondary} 
+                <Ionicons
+                  name={showPassword ? 'eye-off' : 'eye'}
+                  size={20}
+                  color={colors.textSecondary}
                 />
               </TouchableOpacity>
             </View>
           </View>
 
           <TouchableOpacity
-            style={[styles.primaryBtn, (!username || !password) && styles.btnDisabled]}
+            style={[styles.primaryBtn, (!email.trim() || !password) && styles.btnDisabled]}
             onPress={handleLogin}
-            disabled={isLoading || !username || !password}
+            disabled={isLoading || !email.trim() || !password}
           >
             {isLoading ? (
               <ActivityIndicator color={colors.textWhite} />
@@ -134,13 +151,12 @@ export default function AdminLoginScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Test Hint */}
         <View style={styles.hintBox}>
           <Ionicons name="information-circle" size={18} color={colors.info} />
           <Text style={styles.hintText}>
-            {language === 'en' 
-              ? 'Default credentials: admin / admin123'
-              : 'डिफ़ॉल्ट: admin / admin123'}
+            {language === 'en'
+              ? 'Use an account created in Firebase Console (Authentication > Users) with Email/Password sign-in enabled.'
+              : 'Firebase Console में बनाया गया अकाउंट इस्तेमाल करें।'}
           </Text>
         </View>
       </View>
@@ -153,11 +169,23 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  header: {
-    flexDirection: 'row',
+  centerContent: {
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.lg,
+    padding: spacing.xl,
+  },
+  errorTitle: {
+    fontSize: fontSize.xl,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginTop: spacing.lg,
+    textAlign: 'center',
+  },
+  errorText: {
+    fontSize: fontSize.md,
+    color: colors.textSecondary,
+    marginTop: spacing.sm,
+    textAlign: 'center',
   },
   backBtn: {
     width: 40,
@@ -166,6 +194,17 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  backBtnText: {
+    fontSize: fontSize.md,
+    color: colors.accent,
+    marginTop: spacing.xl,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.lg,
   },
   headerTitle: {
     flex: 1,

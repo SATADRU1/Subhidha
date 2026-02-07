@@ -1,5 +1,5 @@
 import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { auth } from '../config/firebase';
 
 const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
@@ -11,40 +11,27 @@ const api = axios.create({
   },
 });
 
-// Request interceptor to add auth token
+// Request interceptor: add Firebase ID token
 api.interceptors.request.use(
   async (config) => {
-    const token = await AsyncStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    if (auth?.currentUser) {
+      try {
+        const token = await auth.currentUser.getIdToken();
+        if (token) config.headers.Authorization = `Bearer ${token}`;
+      } catch {
+        // leave no auth header on token error
+      }
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
-// Response interceptor for error handling
+// Response interceptor for 401 (backend will invalidate; client can stay signed in to Firebase)
 api.interceptors.response.use(
   (response) => response,
-  async (error) => {
-    if (error.response?.status === 401) {
-      await AsyncStorage.removeItem('token');
-      await AsyncStorage.removeItem('user');
-    }
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
-
-// Auth APIs
-export const authAPI = {
-  sendOTP: (mobile: string) => api.post('/auth/send-otp', { mobile }),
-  verifyOTP: (data: { mobile: string; otp: string; name?: string; aadhaar_number?: string; language?: string }) =>
-    api.post('/auth/verify-otp', data),
-  adminLogin: (data: { username: string; password: string }) =>
-    api.post('/auth/admin/login', data),
-};
 
 // Citizen APIs
 export const citizenAPI = {

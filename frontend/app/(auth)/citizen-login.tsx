@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -16,34 +16,50 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { signInWithPhoneNumber } from 'firebase/auth';
+import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
 import { colors, spacing, fontSize, borderRadius } from '@/src/constants/theme';
 import { useAuth } from '@/src/contexts/AuthContext';
-import { authAPI } from '@/src/services/api';
+import { auth, isFirebaseConfigured } from '@/src/config/firebase';
 import { t } from '@/src/utils/helpers';
 
 export default function CitizenLoginScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { login, language, setLanguage } = useAuth();
-  
+  const { setUserTypeAfterLogin, language, setLanguage, isFirebaseReady } = useAuth();
+
+  const recaptchaVerifier = useRef<FirebaseRecaptchaVerifierModal>(null);
   const [step, setStep] = useState<'mobile' | 'otp'>('mobile');
   const [mobile, setMobile] = useState('');
   const [otp, setOtp] = useState('');
   const [name, setName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [confirmationResult, setConfirmationResult] = useState<{ confirm: (code: string) => Promise<unknown> } | null>(null);
 
   const handleSendOTP = async () => {
     if (mobile.length < 10) {
       Alert.alert(t('error', language), 'Please enter a valid 10-digit mobile number');
       return;
     }
+    if (!isFirebaseReady || !auth) {
+      Alert.alert(t('error', language), 'Firebase is not configured. Add your Firebase config to .env');
+      return;
+    }
     setIsLoading(true);
     try {
-      await authAPI.sendOTP(mobile);
+      const fullPhone = '+91' + mobile;
+      const verifier = recaptchaVerifier.current;
+      if (!verifier) {
+        Alert.alert(t('error', language), 'Verification not ready. Try again.');
+        setIsLoading(false);
+        return;
+      }
+      const result = await signInWithPhoneNumber(auth, fullPhone, verifier);
+      setConfirmationResult(result as unknown as { confirm: (code: string) => Promise<unknown> });
       setStep('otp');
-      Alert.alert(t('success', language), 'OTP sent! Use 123456 for testing');
-    } catch (error: any) {
-      Alert.alert(t('error', language), error.response?.data?.detail || 'Failed to send OTP');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to send OTP';
+      Alert.alert(t('error', language), message);
     } finally {
       setIsLoading(false);
     }
@@ -54,31 +70,57 @@ export default function CitizenLoginScreen() {
       Alert.alert(t('error', language), 'Please enter a valid 6-digit OTP');
       return;
     }
+    if (!confirmationResult) {
+      Alert.alert(t('error', language), 'Session expired. Please request OTP again.');
+      return;
+    }
     setIsLoading(true);
     try {
-      const response = await authAPI.verifyOTP({ mobile, otp, name: name || undefined, language });
-      await login(response.data.access_token, {
-        id: response.data.user_id,
-        name: response.data.user_name || name,
-        mobile,
-        type: 'citizen',
-      });
+      await confirmationResult.confirm(otp);
+      await setUserTypeAfterLogin('citizen');
       router.replace('/(tabs)');
-    } catch (error: any) {
-      Alert.alert(t('error', language), error.response?.data?.detail || 'Invalid OTP');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Invalid OTP';
+      Alert.alert(t('error', language), message);
     } finally {
       setIsLoading(false);
     }
   };
 
+  if (!isFirebaseConfigured) {
+    return (
+      <View style={[styles.container, styles.centerContent]}>
+        <StatusBar barStyle="light-content" />
+        <Ionicons name="warning" size={48} color={colors.warning} />
+        <Text style={styles.errorTitle}>Firebase not configured</Text>
+        <Text style={styles.errorText}>
+          Copy .env.example to .env and add your Firebase web app credentials (EXPO_PUBLIC_FIREBASE_*).
+        </Text>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <Text style={styles.backBtnText}>Go back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
+      <FirebaseRecaptchaVerifierModal
+        ref={recaptchaVerifier}
+        firebaseConfig={{
+          apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+          authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
+          projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+          storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
+          messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+          appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
+        }}
+      />
       <StatusBar barStyle="light-content" />
-      
-      {/* Header */}
+
       <LinearGradient
         colors={[colors.primary, colors.primaryDark]}
         style={[styles.header, { paddingTop: insets.top + spacing.md }]}
@@ -87,7 +129,7 @@ export default function CitizenLoginScreen() {
           <Ionicons name="arrow-back" size={24} color={colors.textWhite} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{t('iAmCitizen', language)}</Text>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.langBtn}
           onPress={() => setLanguage(language === 'en' ? 'hi' : 'en')}
         >
@@ -95,12 +137,11 @@ export default function CitizenLoginScreen() {
         </TouchableOpacity>
       </LinearGradient>
 
-      <ScrollView 
-        style={styles.content} 
+      <ScrollView
+        style={styles.content}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Step Indicator */}
         <View style={styles.stepIndicator}>
           <View style={[styles.stepCircle, styles.stepActive]}>
             <Text style={styles.stepNumber}>1</Text>
@@ -111,7 +152,6 @@ export default function CitizenLoginScreen() {
           </View>
         </View>
 
-        {/* Form Card */}
         <View style={styles.formCard}>
           {step === 'mobile' ? (
             <>
@@ -120,8 +160,8 @@ export default function CitizenLoginScreen() {
               </View>
               <Text style={styles.title}>{t('enterMobileNumber', language)}</Text>
               <Text style={styles.subtitle}>
-                {language === 'en' 
-                  ? 'We will send you an OTP to verify'
+                {language === 'en'
+                  ? 'We will send you an OTP to verify (Firebase Phone Auth)'
                   : 'हम आपको सत्यापित करने के लिए OTP भेजेंगे'}
               </Text>
 
@@ -173,7 +213,7 @@ export default function CitizenLoginScreen() {
                 placeholderTextColor={colors.textLight}
               />
 
-              <Text style={styles.optionalLabel}>{t('yourName', language)}</Text>
+              <Text style={styles.optionalLabel}>{t('yourName', language)} (optional)</Text>
               <TextInput
                 style={styles.textInput}
                 placeholder={t('name', language)}
@@ -200,14 +240,6 @@ export default function CitizenLoginScreen() {
             </>
           )}
         </View>
-
-        {/* Test Hint */}
-        <View style={styles.hintBox}>
-          <Ionicons name="information-circle" size={18} color={colors.info} />
-          <Text style={styles.hintText}>
-            {language === 'en' ? 'For testing, use OTP: 123456' : 'परीक्षण के लिए OTP: 123456'}
-          </Text>
-        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -217,6 +249,29 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  centerContent: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.xl,
+  },
+  errorTitle: {
+    fontSize: fontSize.xl,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginTop: spacing.lg,
+    textAlign: 'center',
+  },
+  errorText: {
+    fontSize: fontSize.md,
+    color: colors.textSecondary,
+    marginTop: spacing.sm,
+    textAlign: 'center',
+  },
+  backBtnText: {
+    fontSize: fontSize.md,
+    color: colors.primary,
+    marginTop: spacing.xl,
   },
   header: {
     flexDirection: 'row',
@@ -391,19 +446,5 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
     color: colors.primary,
     fontWeight: '500',
-  },
-  hintBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.info + '15',
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
-    marginTop: spacing.xl,
-  },
-  hintText: {
-    flex: 1,
-    fontSize: fontSize.sm,
-    color: colors.info,
-    marginLeft: spacing.sm,
   },
 });
