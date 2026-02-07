@@ -162,7 +162,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         isAuthenticated,
         isFirebaseReady,
         setUserTypeAfterLogin,
-        loginWithPhone,
         loginWithEmail,
         logout,
         setLanguage,

@@ -1,5 +1,7 @@
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
-import { getAuth, Auth } from 'firebase/auth';
+import { getAuth, initializeAuth, getReactNativePersistence, Auth } from 'firebase/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
@@ -15,7 +17,18 @@ let auth: Auth;
 
 if (firebaseConfig.apiKey && firebaseConfig.projectId) {
   app = getApps().length === 0 ? initializeApp(firebaseConfig) : (getApps()[0] as FirebaseApp);
-  auth = getAuth(app);
+  if (Platform.OS === 'web') {
+    auth = getAuth(app);
+  } else {
+    try {
+      auth = initializeAuth(app, {
+        persistence: getReactNativePersistence(AsyncStorage),
+      });
+    } catch {
+      // Fallback if auth was already initialized.
+      auth = getAuth(app);
+    }
+  }
 } else {
   app = null as unknown as FirebaseApp;
   auth = null as unknown as Auth;

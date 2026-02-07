@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -16,8 +16,11 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { signInWithPhoneNumber } from 'firebase/auth';
-import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  updateProfile,
+} from 'firebase/auth';
 import { colors, spacing, fontSize, borderRadius } from '@/src/constants/theme';
 import { useAuth } from '@/src/contexts/AuthContext';
 import { auth, isFirebaseConfigured } from '@/src/config/firebase';
@@ -28,17 +31,15 @@ export default function CitizenLoginScreen() {
   const insets = useSafeAreaInsets();
   const { setUserTypeAfterLogin, language, setLanguage, isFirebaseReady } = useAuth();
 
-  const recaptchaVerifier = useRef<FirebaseRecaptchaVerifierModal>(null);
-  const [step, setStep] = useState<'mobile' | 'otp'>('mobile');
-  const [mobile, setMobile] = useState('');
-  const [otp, setOtp] = useState('');
+  const [mode, setMode] = useState<'login' | 'signup'>('login');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [confirmationResult, setConfirmationResult] = useState<{ confirm: (code: string) => Promise<unknown> } | null>(null);
 
-  const handleSendOTP = async () => {
-    if (mobile.length < 10) {
-      Alert.alert(t('error', language), 'Please enter a valid 10-digit mobile number');
+  const handleSubmit = async () => {
+    if (!email.trim() || !password) {
+      Alert.alert(t('error', language), 'Please enter email and password');
       return;
     }
     if (!isFirebaseReady || !auth) {
@@ -47,40 +48,18 @@ export default function CitizenLoginScreen() {
     }
     setIsLoading(true);
     try {
-      const fullPhone = '+91' + mobile;
-      const verifier = recaptchaVerifier.current;
-      if (!verifier) {
-        Alert.alert(t('error', language), 'Verification not ready. Try again.');
-        setIsLoading(false);
-        return;
+      if (mode === 'signup') {
+        const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
+        if (name.trim()) {
+          await updateProfile(cred.user, { displayName: name.trim() });
+        }
+      } else {
+        await signInWithEmailAndPassword(auth, email.trim(), password);
       }
-      const result = await signInWithPhoneNumber(auth, fullPhone, verifier);
-      setConfirmationResult(result as unknown as { confirm: (code: string) => Promise<unknown> });
-      setStep('otp');
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Failed to send OTP';
-      Alert.alert(t('error', language), message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleVerifyOTP = async () => {
-    if (otp.length !== 6) {
-      Alert.alert(t('error', language), 'Please enter a valid 6-digit OTP');
-      return;
-    }
-    if (!confirmationResult) {
-      Alert.alert(t('error', language), 'Session expired. Please request OTP again.');
-      return;
-    }
-    setIsLoading(true);
-    try {
-      await confirmationResult.confirm(otp);
       await setUserTypeAfterLogin('citizen');
       router.replace('/(tabs)');
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Invalid OTP';
+      const message = error instanceof Error ? error.message : 'Authentication failed';
       Alert.alert(t('error', language), message);
     } finally {
       setIsLoading(false);
@@ -108,17 +87,6 @@ export default function CitizenLoginScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <FirebaseRecaptchaVerifierModal
-        ref={recaptchaVerifier}
-        firebaseConfig={{
-          apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
-          authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
-          projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
-          storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
-          messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-          appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
-        }}
-      />
       <StatusBar barStyle="light-content" />
 
       <LinearGradient
@@ -142,78 +110,22 @@ export default function CitizenLoginScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.stepIndicator}>
-          <View style={[styles.stepCircle, styles.stepActive]}>
-            <Text style={styles.stepNumber}>1</Text>
-          </View>
-          <View style={[styles.stepLine, step === 'otp' && styles.stepLineActive]} />
-          <View style={[styles.stepCircle, step === 'otp' && styles.stepActive]}>
-            <Text style={[styles.stepNumber, step !== 'otp' && styles.stepNumberInactive]}>2</Text>
-          </View>
-        </View>
-
         <View style={styles.formCard}>
-          {step === 'mobile' ? (
+          <View style={styles.iconCircle}>
+            <Ionicons name="mail" size={40} color={colors.primary} />
+          </View>
+          <Text style={styles.title}>
+            {mode === 'login' ? 'Citizen Login' : 'Create Citizen Account'}
+          </Text>
+          <Text style={styles.subtitle}>
+            {mode === 'login'
+              ? 'Sign in with your email and password'
+              : 'Create a new account with email and password'}
+          </Text>
+
+          {mode === 'signup' && (
             <>
-              <View style={styles.iconCircle}>
-                <Ionicons name="phone-portrait" size={40} color={colors.primary} />
-              </View>
-              <Text style={styles.title}>{t('enterMobileNumber', language)}</Text>
-              <Text style={styles.subtitle}>
-                {language === 'en'
-                  ? 'We will send you an OTP to verify (Firebase Phone Auth)'
-                  : 'हम आपको सत्यापित करने के लिए OTP भेजेंगे'}
-              </Text>
-
-              <View style={styles.phoneInput}>
-                <View style={styles.countryCode}>
-                  <Text style={styles.countryCodeText}>+91</Text>
-                </View>
-                <TextInput
-                  style={styles.phoneField}
-                  placeholder={t('mobileNumber', language)}
-                  keyboardType="phone-pad"
-                  maxLength={10}
-                  value={mobile}
-                  onChangeText={setMobile}
-                  placeholderTextColor={colors.textLight}
-                />
-              </View>
-
-              <TouchableOpacity
-                style={[styles.primaryBtn, mobile.length < 10 && styles.btnDisabled]}
-                onPress={handleSendOTP}
-                disabled={isLoading || mobile.length < 10}
-              >
-                {isLoading ? (
-                  <ActivityIndicator color={colors.textWhite} />
-                ) : (
-                  <Text style={styles.primaryBtnText}>{t('sendOTP', language)}</Text>
-                )}
-              </TouchableOpacity>
-            </>
-          ) : (
-            <>
-              <View style={styles.iconCircle}>
-                <Ionicons name="keypad" size={40} color={colors.primary} />
-              </View>
-              <Text style={styles.title}>{t('enterOTP', language)}</Text>
-              <Text style={styles.subtitle}>
-                {t('otpSentTo', language)} +91 {mobile}
-              </Text>
-
-              <TextInput
-                style={styles.otpInput}
-                placeholder="- - - - - -"
-                keyboardType="number-pad"
-                maxLength={6}
-                value={otp}
-                onChangeText={setOtp}
-                textAlign="center"
-                placeholderTextColor={colors.textLight}
-              />
-
-              <Text style={styles.optionalLabel}>{t('yourName', language)} (optional)</Text>
+              <Text style={styles.optionalLabel}>Your name (optional)</Text>
               <TextInput
                 style={styles.textInput}
                 placeholder={t('name', language)}
@@ -221,24 +133,52 @@ export default function CitizenLoginScreen() {
                 onChangeText={setName}
                 placeholderTextColor={colors.textLight}
               />
-
-              <TouchableOpacity
-                style={[styles.primaryBtn, otp.length !== 6 && styles.btnDisabled]}
-                onPress={handleVerifyOTP}
-                disabled={isLoading || otp.length !== 6}
-              >
-                {isLoading ? (
-                  <ActivityIndicator color={colors.textWhite} />
-                ) : (
-                  <Text style={styles.primaryBtnText}>{t('verifyAndContinue', language)}</Text>
-                )}
-              </TouchableOpacity>
-
-              <TouchableOpacity onPress={() => setStep('mobile')} style={styles.linkBtn}>
-                <Text style={styles.linkText}>{t('changeMobile', language)}</Text>
-              </TouchableOpacity>
             </>
           )}
+
+          <TextInput
+            style={styles.textInput}
+            placeholder="Email"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            value={email}
+            onChangeText={setEmail}
+            placeholderTextColor={colors.textLight}
+          />
+
+          <TextInput
+            style={styles.textInput}
+            placeholder={t('password', language)}
+            secureTextEntry
+            value={password}
+            onChangeText={setPassword}
+            placeholderTextColor={colors.textLight}
+          />
+
+          <TouchableOpacity
+            style={[styles.primaryBtn, (!email.trim() || !password) && styles.btnDisabled]}
+            onPress={handleSubmit}
+            disabled={isLoading || !email.trim() || !password}
+          >
+            {isLoading ? (
+              <ActivityIndicator color={colors.textWhite} />
+            ) : (
+              <Text style={styles.primaryBtnText}>
+                {mode === 'login' ? 'Sign In' : 'Create Account'}
+              </Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => setMode(mode === 'login' ? 'signup' : 'login')}
+            style={styles.linkBtn}
+          >
+            <Text style={styles.linkText}>
+              {mode === 'login'
+                ? "Don't have an account? Create one"
+                : 'Already have an account? Sign in'}
+            </Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
