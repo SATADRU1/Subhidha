@@ -120,11 +120,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const logout = async () => {
     try {
       if (auth) await firebaseSignOut(auth);
+    } catch (error) {
+      console.error('Error logging out:', error);
+    } finally {
       await AsyncStorage.removeItem(USER_TYPE_KEY);
       setToken(null);
       setUserTypeState(null);
-    } catch (error) {
-      console.error('Error logging out:', error);
+      setFirebaseUser(null);
     }
   };
 

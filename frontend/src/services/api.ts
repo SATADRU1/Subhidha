@@ -62,15 +62,15 @@ export const citizenAPI = {
 };
 
 /* ===========================
-   Bills APIs (NOT IMPLEMENTED)
+  Bills APIs (PARTIALLY IMPLEMENTED)
 =========================== */
-// export const billsAPI = {
-//   getAll: () => api.get('/bills'),
-//   getPending: () => api.get('/bills/pending'),
-//   getById: (id: string) => api.get(`/bills/${id}`),
-//   getBySection: (serviceType: string) =>
-//     api.get(`/bills/section/${serviceType}`),
-// };
+export const billsAPI = {
+  getAll: () => api.get('/bills'),
+  getPending: () => api.get('/bills/pending'),
+  // getById: (id: string) => api.get(`/bills/${id}`),
+  // getBySection: (serviceType: string) =>
+  //   api.get(`/bills/section/${serviceType}`),
+};
 
 /* ===========================
    Payments APIs (PARTIALLY IMPLEMENTED)
@@ -96,12 +96,12 @@ export const paymentsAPI = {
 =========================== */
 export const complaintsAPI = {
   create: (data: any) => api.post('/complaints', data),
-  // getAll: () => api.get('/complaints'),         // ❌ not implemented
+  getAll: () => api.get('/complaints'),
   // getById: (id: string) => api.get(`/complaints/${id}`),
 };
 
 /* ===========================
-   Notifications APIs (NOT IMPLEMENTED)
+  Notifications APIs (NOT IMPLEMENTED)
 =========================== */
 // export const notificationsAPI = {
 //   getAll: () => api.get('/notifications'),
@@ -109,11 +109,11 @@ export const complaintsAPI = {
 // };
 
 /* ===========================
-   Announcements APIs (NOT IMPLEMENTED)
+  Announcements APIs (NOT IMPLEMENTED)
 =========================== */
-// export const announcementsAPI = {
-//   getAll: () => api.get('/announcements'),
-// };
+export const announcementsAPI = {
+  getAll: async () => ({ data: [] as any[] }),
+};
 
 /* ===========================
    Admin APIs (PARTIALLY IMPLEMENTED)

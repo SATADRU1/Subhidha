@@ -14,7 +14,7 @@ export default function TabsLayout() {
 
   return (
     <View style={{ flex: 1 }}>
-    <Tabs
+      <Tabs
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
@@ -72,8 +72,8 @@ export default function TabsLayout() {
           ),
         }}
       />
-    </Tabs>
-    <FloatingChatbot />
+      </Tabs>
+      <FloatingChatbot />
     </View>
   );
 }
