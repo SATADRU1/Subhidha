@@ -1,16 +1,19 @@
 import React from 'react';
+import { View } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fontSize } from '@/src/constants/theme';
 import { useAuth } from '@/src/contexts/AuthContext';
 import { t } from '@/src/utils/helpers';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import FloatingChatbot from '@/src/components/FloatingChatbot';
 
 export default function TabsLayout() {
   const { language } = useAuth();
   const insets = useSafeAreaInsets();
 
   return (
+    <View style={{ flex: 1 }}>
     <Tabs
       screenOptions={{
         headerShown: false,
@@ -70,5 +73,7 @@ export default function TabsLayout() {
         }}
       />
     </Tabs>
+    <FloatingChatbot />
+    </View>
   );
 }
