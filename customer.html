@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Panel - Subhidha</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+        }
+        .header {
+            background: rgba(255,255,255,0.1);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            backdrop-filter: blur(10px);
+        }
+        .header h1 { color: #4ecdc4; font-size: 1.8em; }
+        .user-info { display: flex; align-items: center; gap: 15px; }
+        .user-info span { color: #a0a0a0; }
+        .customer-id-badge {
+            background: rgba(78,205,196,0.2);
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-family: monospace;
+            font-size: 0.85em;
+            color: #4ecdc4;
+        }
+        .logout-btn {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        .logout-btn:hover { background: #c0392b; transform: scale(1.05); }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .section-tabs {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .section-tab {
+            background: rgba(255,255,255,0.05);
+            border: 2px solid transparent;
+            color: #fff;
+            padding: 20px 30px;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+            min-width: 150px;
+        }
+        .section-tab:hover { border-color: #4ecdc4; transform: translateY(-5px); }
+        .section-tab.active { background: rgba(78,205,196,0.2); border-color: #4ecdc4; }
+        .section-tab .icon { font-size: 2em; margin-bottom: 10px; display: block; }
+        .section-tab .label { font-weight: bold; }
+        .section-tab .badge {
+            background: #e74c3c;
+            color: white;
+            border-radius: 10px;
+            padding: 2px 8px;
+            font-size: 0.75em;
+            margin-left: 5px;
+        }
+        .bills-container {
+            background: rgba(255,255,255,0.05);
+            border-radius: 20px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+        }
+        .section-title {
+            color: #4ecdc4;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .bill-card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border: 2px solid transparent;
+            transition: all 0.3s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .bill-card:hover { border-color: rgba(78,205,196,0.3); }
+        .bill-card.paid { border-color: #27ae60; background: rgba(39,174,96,0.1); }
+        .bill-info { flex: 1; min-width: 200px; }
+        .bill-info h3 { color: #4ecdc4; margin-bottom: 10px; }
+        .bill-info p { color: #a0a0a0; margin-bottom: 5px; }
+        .bill-amount {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #fff;
+            text-align: right;
+        }
+        .bill-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .status-badge {
+            padding: 8px 20px;
+            border-radius: 25px;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+        .status-pending { background: #f39c12; color: #1a1a2e; }
+        .status-paid { background: #27ae60; color: white; }
+        .paid-tick {
+            font-size: 2em;
+            color: #27ae60;
+            animation: pulse 1s ease-in-out;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+        .pay-btn {
+            background: linear-gradient(135deg, #4ecdc4, #44a08d);
+            color: #1a1a2e;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1em;
+            transition: all 0.3s;
+        }
+        .pay-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(78,205,196,0.3); }
+        
+        /* UPI Payment Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal.active { display: flex; }
+        .modal-content {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            border-radius: 25px;
+            padding: 40px;
+            max-width: 450px;
+            width: 90%;
+            text-align: center;
+            animation: slideUp 0.3s ease;
+        }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(50px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .modal-header { margin-bottom: 30px; }
+        .modal-header h2 { color: #4ecdc4; margin-bottom: 10px; }
+        .close-btn {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 2em;
+            cursor: pointer;
+        }
+        .upi-apps {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .upi-app {
+            background: rgba(255,255,255,0.1);
+            border: 2px solid transparent;
+            border-radius: 15px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            width: 100px;
+        }
+        .upi-app:hover, .upi-app.selected { border-color: #4ecdc4; background: rgba(78,205,196,0.2); }
+        .upi-app img { width: 50px; height: 50px; margin-bottom: 10px; }
+        .upi-app span { display: block; font-size: 0.85em; }
+        .gpay-icon { background: #4285F4; border-radius: 10px; padding: 10px; color: white; font-weight: bold; font-size: 1.2em; }
+        .phonepe-icon { background: #5F259F; border-radius: 10px; padding: 10px; color: white; font-weight: bold; font-size: 1.2em; }
+        .paytm-icon { background: #00BAF2; border-radius: 10px; padding: 10px; color: white; font-weight: bold; font-size: 1.2em; }
+        .upi-id-input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid rgba(78,205,196,0.3);
+            border-radius: 10px;
+            background: rgba(255,255,255,0.05);
+            color: #fff;
+            font-size: 1em;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .upi-id-input:focus { outline: none; border-color: #4ecdc4; }
+        .amount-display {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #4ecdc4;
+            margin-bottom: 20px;
+        }
+        .confirm-pay-btn {
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+            color: white;
+            border: none;
+            padding: 15px 50px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1.1em;
+            transition: all 0.3s;
+            width: 100%;
+        }
+        .confirm-pay-btn:hover { transform: scale(1.02); box-shadow: 0 10px 30px rgba(39,174,96,0.3); }
+        .confirm-pay-btn:disabled { background: #666; cursor: not-allowed; }
+        
+        /* Processing animation */
+        .processing {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+        .processing.active { display: flex; }
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(78,205,196,0.2);
+            border-top-color: #4ecdc4;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        /* Success animation */
+        .success-animation {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+        .success-animation.active { display: flex; }
+        .success-tick {
+            width: 80px;
+            height: 80px;
+            background: #27ae60;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3em;
+            animation: scaleIn 0.5s ease;
+        }
+        @keyframes scaleIn {
+            0% { transform: scale(0); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+        
+        .no-bills {
+            text-align: center;
+            padding: 60px;
+            color: #a0a0a0;
+        }
+        .no-bills .icon { font-size: 4em; margin-bottom: 20px; opacity: 0.5; }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #4ecdc4;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>💳 Subhidha Customer Portal</h1>
+        <div class="user-info">
+            <span>Customer ID:</span>
+            <span id="customer-id-display" class="customer-id-badge">Loading...</span>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Service Section Tabs -->
+        <div class="section-tabs">
+            <div class="section-tab active" onclick="showSection('all')">
+                <span class="icon">📋</span>
+                <span class="label">All Bills</span>
+                <span id="all-count" class="badge" style="display:none;">0</span>
+            </div>
+            <div class="section-tab" onclick="showSection('electricity')">
+                <span class="icon">⚡</span>
+                <span class="label">Electricity</span>
+                <span id="electricity-count" class="badge" style="display:none;">0</span>
+            </div>
+            <div class="section-tab" onclick="showSection('water')">
+                <span class="icon">💧</span>
+                <span class="label">Water</span>
+                <span id="water-count" class="badge" style="display:none;">0</span>
+            </div>
+            <div class="section-tab" onclick="showSection('gas')">
+                <span class="icon">🔥</span>
+                <span class="label">Gas</span>
+                <span id="gas-count" class="badge" style="display:none;">0</span>
+            </div>
+            <div class="section-tab" onclick="showSection('air_pollution')">
+                <span class="icon">🌬️</span>
+                <span class="label">Air Pollution</span>
+                <span id="air_pollution-count" class="badge" style="display:none;">0</span>
+            </div>
+        </div>
+
+        <!-- Bills Container -->
+        <div class="bills-container">
+            <h2 class="section-title">
+                <span id="section-icon">📋</span>
+                <span id="section-label">All Bills</span>
+            </h2>
+            <div id="bills-list">
+                <div class="loading">Loading your bills...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- UPI Payment Modal -->
+    <div id="payment-modal" class="modal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closePaymentModal()">&times;</button>
+            
+            <!-- Payment Form -->
+            <div id="payment-form">
+                <div class="modal-header">
+                    <h2>Pay Bill</h2>
+                    <p id="bill-details-modal" style="color:#a0a0a0;"></p>
+                </div>
+                
+                <div class="amount-display">
+                    ₹<span id="payment-amount">0</span>
+                </div>
+                
+                <p style="margin-bottom:20px;color:#a0a0a0;">Select Payment Method</p>
+                
+                <div class="upi-apps">
+                    <div class="upi-app" onclick="selectUpiApp('gpay', this)">
+                        <div class="gpay-icon">G</div>
+                        <span>GPay</span>
+                    </div>
+                    <div class="upi-app" onclick="selectUpiApp('phonepe', this)">
+                        <div class="phonepe-icon">P</div>
+                        <span>PhonePe</span>
+                    </div>
+                    <div class="upi-app" onclick="selectUpiApp('paytm', this)">
+                        <div class="paytm-icon">Ptm</div>
+                        <span>Paytm</span>
+                    </div>
+                </div>
+                
+                <input type="text" id="upi-id" class="upi-id-input" placeholder="Enter UPI ID (e.g., name@upi)">
+                
+                <button id="confirm-pay-btn" class="confirm-pay-btn" onclick="processPayment()" disabled>
+                    Pay Now
+                </button>
+            </div>
+            
+            <!-- Processing -->
+            <div id="payment-processing" class="processing">
+                <div class="spinner"></div>
+                <p style="color:#4ecdc4;">Processing payment...</p>
+            </div>
+            
+            <!-- Success -->
+            <div id="payment-success" class="success-animation">
+                <div class="success-tick">✓</div>
+                <h2 style="color:#27ae60;">Payment Successful!</h2>
+                <p id="transaction-id" style="color:#a0a0a0;"></p>
+                <button class="pay-btn" onclick="closePaymentModal()" style="margin-top:20px;">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="customer.js"></script>
+</body>
+</html>

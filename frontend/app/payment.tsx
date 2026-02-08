@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
+  TextInput,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
@@ -26,6 +27,7 @@ export default function PaymentScreen() {
   const [processing, setProcessing] = useState(false);
   const [bill, setBill] = useState<any>(null);
   const [selectedMethod, setSelectedMethod] = useState('upi');
+  const [upiId, setUpiId] = useState('');
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [paymentResult, setPaymentResult] = useState<any>(null);
 
@@ -45,11 +47,11 @@ export default function PaymentScreen() {
     }
   };
 
-  const paymentMethods = [
-    { id: 'upi', name: 'UPI', icon: 'phone-portrait', desc: 'Pay using UPI apps' },
-    { id: 'card', name: 'Card', icon: 'card', desc: 'Credit/Debit Card' },
-    { id: 'netbanking', name: 'Net Banking', icon: 'business', desc: 'Pay via bank' },
-    { id: 'wallet', name: 'Wallet', icon: 'wallet', desc: 'Digital Wallet' },
+  const upiApps = [
+    { id: 'gpay', name: 'Google Pay', icon: 'logo-google', color: '#5F6368' },
+    { id: 'phonepe', name: 'PhonePe', icon: 'phone-portrait', color: '#5f259f' },
+    { id: 'paytm', name: 'Paytm', icon: 'wallet', color: '#00BAF2' },
+    { id: 'bhim', name: 'BHIM', icon: 'phone-portrait', color: '#00B386' },
   ];
 
   const handlePayment = async () => {
@@ -129,19 +131,19 @@ export default function PaymentScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
+      {/* UPI-style Header */}
       <View style={[styles.header, { paddingTop: insets.top + spacing.md }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={colors.white} />
+          <Ionicons name="arrow-back" size={24} color={colors.textWhite} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
-          {language === 'en' ? 'Pay Bill' : 'बिल भुगतान'}
+          {language === 'en' ? 'Pay via UPI' : 'UPI से भुगतान'}
         </Text>
         <View style={{ width: 40 }} />
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Bill Summary */}
+        {/* Bill Summary - receipt style */}
         <View style={styles.billSummary}>
           <View style={[styles.serviceIcon, { backgroundColor: colors[bill?.service_type as keyof typeof colors] + '20' }]}>
             <Ionicons 
@@ -151,76 +153,84 @@ export default function PaymentScreen() {
             />
           </View>
           <View style={styles.billInfo}>
-            <Text style={styles.serviceType}>{bill?.service_type?.toUpperCase()} BILL</Text>
+            <Text style={styles.serviceType}>{bill?.service_type?.replace('_', ' ').toUpperCase()} BILL</Text>
             <Text style={styles.billNumber}>{bill?.bill_number}</Text>
+            {bill?.units_consumed != null && (
+              <Text style={styles.unitsText}>{language === 'en' ? 'Units: ' : 'यूनिट: '}{bill.units_consumed}</Text>
+            )}
           </View>
         </View>
 
+        {/* Amount - big UPI style */}
         <View style={styles.amountCard}>
           <Text style={styles.amountLabel}>
             {language === 'en' ? 'Amount to Pay' : 'भुगतान की राशि'}
           </Text>
           <Text style={styles.amountValue}>{formatCurrency(bill?.amount || 0)}</Text>
           <Text style={styles.dueDate}>
-            {language === 'en' ? 'Due: ' : 'नियत तारीख: '}
+            {language === 'en' ? 'Due: ' : 'नियत: '}
             {formatDate(bill?.due_date)}
           </Text>
         </View>
 
-        {/* Payment Methods */}
+        {/* UPI Apps - GPay / PhonePe style */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
-            {language === 'en' ? 'Select Payment Method' : 'भुगतान विधि चुनें'}
+            {language === 'en' ? 'Pay using' : 'इनसे भुगतान करें'}
           </Text>
-          {paymentMethods.map((method) => (
-            <TouchableOpacity
-              key={method.id}
-              style={[
-                styles.methodCard,
-                selectedMethod === method.id && styles.methodCardSelected,
-              ]}
-              onPress={() => setSelectedMethod(method.id)}
-            >
-              <View style={styles.methodIcon}>
-                <Ionicons name={method.icon as any} size={24} color={colors.primary} />
-              </View>
-              <View style={styles.methodInfo}>
-                <Text style={styles.methodName}>{method.name}</Text>
-                <Text style={styles.methodDesc}>{method.desc}</Text>
-              </View>
-              <View style={[
-                styles.radio,
-                selectedMethod === method.id && styles.radioSelected,
-              ]}>
-                {selectedMethod === method.id && (
-                  <View style={styles.radioInner} />
-                )}
-              </View>
-            </TouchableOpacity>
-          ))}
+          <View style={styles.upiAppsRow}>
+            {upiApps.map((app) => (
+              <TouchableOpacity
+                key={app.id}
+                style={[styles.upiAppChip, selectedMethod === 'upi' && styles.upiAppChipSelected]}
+                onPress={() => setSelectedMethod('upi')}
+              >
+                <View style={[styles.upiAppIcon, { backgroundColor: app.color + '20' }]}>
+                  <Ionicons name={app.icon as any} size={28} color={app.color} />
+                </View>
+                <Text style={styles.upiAppName} numberOfLines={1}>{app.name}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
 
-        {/* Mock Payment Notice */}
+        {/* UPI ID input - like GPay */}
+        <View style={styles.section}>
+          <Text style={styles.inputLabel}>
+            {language === 'en' ? 'UPI ID (optional for demo)' : 'UPI ID (डेमो के लिए वैकल्पिक)'}
+          </Text>
+          <TextInput
+            style={styles.upiInput}
+            placeholder="name@upi"
+            placeholderTextColor={colors.textLight}
+            value={upiId}
+            onChangeText={setUpiId}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+        </View>
+
+        {/* Mock notice */}
         <View style={styles.noticeCard}>
           <Ionicons name="information-circle" size={20} color={colors.info} />
           <Text style={styles.noticeText}>
             {language === 'en' 
-              ? 'This is a mock payment gateway. All payments will succeed for testing purposes.'
-              : 'यह एक मॉक पेमेंट गेटवे है। परीक्षण के लिए सभी भुगतान सफल होंगे।'}
+              ? 'Simulated UPI payment. Tap Pay to complete; no real money is charged.'
+              : 'सिम्युलेटेड UPI भुगतान। पूरा करने के लिए Pay दबाएं; कोई वास्तविक राशि नहीं ली जाती।'}
           </Text>
         </View>
 
-        {/* Pay Button */}
+        {/* Pay Button - prominent like UPI apps */}
         <TouchableOpacity
           style={[styles.payButton, processing && styles.payButtonDisabled]}
           onPress={handlePayment}
           disabled={processing}
         >
           {processing ? (
-            <ActivityIndicator color={colors.white} />
+            <ActivityIndicator color={colors.textWhite} />
           ) : (
             <>
-              <Ionicons name="lock-closed" size={20} color={colors.white} />
+              <Ionicons name="lock-closed" size={22} color={colors.textWhite} />
               <Text style={styles.payButtonText}>
                 {language === 'en' ? 'Pay ' : 'भुगतान करें '}
                 {formatCurrency(bill?.amount || 0)}
@@ -260,7 +270,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: fontSize.lg,
     fontWeight: '600',
-    color: colors.white,
+    color: colors.textWhite,
     textAlign: 'center',
   },
   content: {
@@ -270,7 +280,7 @@ const styles = StyleSheet.create({
   billSummary: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderRadius: borderRadius.md,
     padding: spacing.md,
     marginBottom: spacing.md,
@@ -288,11 +298,16 @@ const styles = StyleSheet.create({
   serviceType: {
     fontSize: fontSize.md,
     fontWeight: '600',
-    color: colors.black,
+    color: colors.textPrimary,
   },
   billNumber: {
     fontSize: fontSize.sm,
-    color: colors.gray,
+    color: colors.textSecondary,
+  },
+  unitsText: {
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
+    marginTop: 2,
   },
   amountCard: {
     backgroundColor: colors.primary,
@@ -303,18 +318,18 @@ const styles = StyleSheet.create({
   },
   amountLabel: {
     fontSize: fontSize.sm,
-    color: colors.white,
+    color: colors.textWhite,
     opacity: 0.9,
   },
   amountValue: {
     fontSize: 36,
     fontWeight: 'bold',
-    color: colors.white,
+    color: colors.textWhite,
     marginVertical: spacing.xs,
   },
   dueDate: {
     fontSize: fontSize.sm,
-    color: colors.white,
+    color: colors.textWhite,
     opacity: 0.8,
   },
   section: {
@@ -323,13 +338,57 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: fontSize.md,
     fontWeight: '600',
-    color: colors.black,
+    color: colors.textPrimary,
     marginBottom: spacing.sm,
+  },
+  inputLabel: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+  },
+  upiInput: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    fontSize: fontSize.md,
+    color: colors.textPrimary,
+  },
+  upiAppsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.md,
+  },
+  upiAppChip: {
+    width: '22%',
+    minWidth: 72,
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.md,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  upiAppChipSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary + '10',
+  },
+  upiAppIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xs,
+  },
+  upiAppName: {
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
   },
   methodCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderRadius: borderRadius.md,
     padding: spacing.md,
     marginBottom: spacing.sm,
@@ -354,18 +413,18 @@ const styles = StyleSheet.create({
   methodName: {
     fontSize: fontSize.md,
     fontWeight: '500',
-    color: colors.black,
+    color: colors.textPrimary,
   },
   methodDesc: {
     fontSize: fontSize.sm,
-    color: colors.gray,
+    color: colors.textSecondary,
   },
   radio: {
     width: 24,
     height: 24,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: colors.grayLight,
+    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -400,10 +459,10 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.sm,
   },
   payButtonDisabled: {
-    backgroundColor: colors.grayLight,
+    backgroundColor: colors.disabled,
   },
   payButtonText: {
-    color: colors.white,
+    color: colors.textWhite,
     fontSize: fontSize.lg,
     fontWeight: '600',
     marginLeft: spacing.sm,
@@ -427,11 +486,11 @@ const styles = StyleSheet.create({
   successAmount: {
     fontSize: 36,
     fontWeight: 'bold',
-    color: colors.black,
+    color: colors.textPrimary,
     marginBottom: spacing.lg,
   },
   receiptCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderRadius: borderRadius.md,
     padding: spacing.lg,
     width: '100%',
@@ -444,12 +503,12 @@ const styles = StyleSheet.create({
   },
   receiptLabel: {
     fontSize: fontSize.sm,
-    color: colors.gray,
+    color: colors.textSecondary,
   },
   receiptValue: {
     fontSize: fontSize.sm,
     fontWeight: '500',
-    color: colors.black,
+    color: colors.textPrimary,
   },
   doneButton: {
     backgroundColor: colors.primary,
@@ -458,7 +517,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.sm,
   },
   doneButtonText: {
-    color: colors.white,
+    color: colors.textWhite,
     fontSize: fontSize.md,
     fontWeight: '600',
   },

@@ -24,17 +24,24 @@ export default function AdminDashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<any>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
+    setFetchError(null);
     try {
       const response = await adminAPI.getDashboard();
       setStats(response.data);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching dashboard:', error);
+      const message = error?.message === 'Network Error'
+        ? (language === 'en' ? 'Cannot reach server. Use same Wi‑Fi and set backend URL in .env (EXPO_PUBLIC_BACKEND_URL).' : 'सर्वर तक पहुँच नहीं। एक ही Wi‑Fi और .env में EXPO_PUBLIC_BACKEND_URL सेट करें।')
+        : (error?.response?.data?.detail || error?.message || 'Failed to load dashboard');
+      setFetchError(message);
+      setStats(null);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [language]);
 
   useEffect(() => {
     fetchData();
@@ -55,10 +62,40 @@ export default function AdminDashboard() {
     setLanguage(language === 'en' ? 'hi' : 'en');
   };
 
-  if (loading) {
+  if (loading && !stats) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.secondary} />
+      </View>
+    );
+  }
+
+  if (fetchError && !stats) {
+    return (
+      <View style={styles.container}>
+        <View style={[styles.header, { paddingTop: insets.top + spacing.md }]}>
+          <View style={styles.headerTop}>
+            <View style={styles.userInfo}>
+              <View style={styles.avatar}>
+                <Ionicons name="shield" size={24} color={colors.white} />
+              </View>
+              <View>
+                <Text style={styles.greeting}>Admin Panel</Text>
+                <Text style={styles.userName}>{user?.name || 'Administrator'}</Text>
+              </View>
+            </View>
+            <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
+              <Ionicons name="log-out" size={22} color={colors.white} />
+            </TouchableOpacity>
+          </View>
+        </View>
+        <View style={styles.errorContainer}>
+          <Ionicons name="cloud-offline" size={64} color={colors.textLight} />
+          <Text style={styles.errorText}>{fetchError}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={() => { setLoading(true); fetchData(); }}>
+            <Text style={styles.retryButtonText}>{language === 'en' ? 'Retry' : 'पुनः प्रयास करें'}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
@@ -208,6 +245,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.background,
+  },
+  errorContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.xl,
+  },
+  errorText: {
+    fontSize: fontSize.md,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: spacing.lg,
+    marginBottom: spacing.xl,
+  },
+  retryButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.md,
+  },
+  retryButtonText: {
+    fontSize: fontSize.md,
+    fontWeight: '600',
+    color: colors.textWhite,
   },
   header: {
     backgroundColor: colors.secondary,

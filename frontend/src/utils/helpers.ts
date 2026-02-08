@@ -80,17 +80,19 @@ export const getServiceIcon = (serviceType: string): string => {
     water: 'water',
     sanitation: 'leaf',
     municipal: 'business',
+    air_pollution: 'leaf',
   };
   return icons[serviceType?.toLowerCase()] || 'ellipse';
 };
 
 export const getServiceColor = (serviceType: string): string => {
-  const colors: Record<string, string> = {
+  const colorMap: Record<string, string> = {
     electricity: '#ff9500',
     gas: '#007aff',
     water: '#00c7be',
     sanitation: '#34c759',
     municipal: '#af52de',
+    air_pollution: '#8b5cf6',
   };
-  return colors[serviceType?.toLowerCase()] || '#6b7280';
+  return colorMap[serviceType?.toLowerCase()] || '#6b7280';
 };

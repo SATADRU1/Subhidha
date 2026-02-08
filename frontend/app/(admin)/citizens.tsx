@@ -86,6 +86,7 @@ export default function AdminCitizens() {
                   <View style={styles.cardInfo}>
                     <Text style={styles.name}>{citizen.name || 'Unknown'}</Text>
                     <Text style={styles.mobile}>+91 {citizen.mobile}</Text>
+                    <Text style={styles.customerId}>Customer ID: {citizen.id}</Text>
                   </View>
                 </View>
                 <View style={styles.cardDetails}>
@@ -189,6 +190,11 @@ const styles = StyleSheet.create({
   mobile: {
     fontSize: fontSize.sm,
     color: colors.gray,
+  },
+  customerId: {
+    fontSize: fontSize.xs,
+    color: colors.primary,
+    marginTop: 2,
   },
   cardDetails: {
     borderTopWidth: 1,

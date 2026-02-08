@@ -20,6 +20,8 @@ import { t, formatCurrency, formatDate, getStatusColor, getStatusLabel, getServi
 
 type TabType = 'pending' | 'paid' | 'all';
 
+const SERVICE_TYPES = ['electricity', 'water', 'gas', 'air_pollution'] as const;
+
 export default function BillsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -54,6 +56,15 @@ export default function BillsScreen() {
     if (activeTab === 'paid') return bill.status === 'paid';
     return true;
   });
+
+  // Group bills by service type
+  const billsBySection = SERVICE_TYPES.reduce((acc, serviceType) => {
+    const sectionBills = filteredBills.filter(bill => bill.service_type === serviceType);
+    if (sectionBills.length > 0) {
+      acc[serviceType] = sectionBills;
+    }
+    return acc;
+  }, {} as Record<string, any[]>);
 
   const totalPending = bills
     .filter(b => b.status === 'pending' || b.status === 'overdue')
@@ -130,55 +141,79 @@ export default function BillsScreen() {
               <Text style={styles.emptyText}>{t('noBillsDesc', language)}</Text>
             </View>
           ) : (
-            filteredBills.map((bill) => (
-              <TouchableOpacity
-                key={bill.id}
-                style={styles.billCard}
-                onPress={() => router.push(`/payment?billId=${bill.id}`)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.billHeader}>
-                  <View style={[styles.billIcon, { backgroundColor: getServiceColor(bill.service_type) + '15' }]}>
+            Object.entries(billsBySection).map(([serviceType, sectionBills]) => (
+              <View key={serviceType} style={styles.sectionContainer}>
+                {/* Section Header */}
+                <View style={styles.sectionHeader}>
+                  <View style={[styles.sectionIcon, { backgroundColor: getServiceColor(serviceType) + '15' }]}>
                     <Ionicons 
-                      name={getServiceIcon(bill.service_type) as any} 
-                      size={24} 
-                      color={getServiceColor(bill.service_type)} 
+                      name={getServiceIcon(serviceType) as any} 
+                      size={20} 
+                      color={getServiceColor(serviceType)} 
                     />
                   </View>
-                  <View style={styles.billInfo}>
-                    <Text style={styles.billType}>{bill.service_type.toUpperCase()} BILL</Text>
-                    <Text style={styles.billNumber}>{bill.bill_number}</Text>
-                  </View>
-                  <View style={[styles.statusBadge, { backgroundColor: getStatusColor(bill.status) + '15' }]}>
-                    <Text style={[styles.statusText, { color: getStatusColor(bill.status) }]}>
-                      {getStatusLabel(bill.status, language)}
-                    </Text>
-                  </View>
-                </View>
-                
-                <View style={styles.billDetails}>
-                  <View style={styles.detailItem}>
-                    <Text style={styles.detailLabel}>{t('billAmount', language)}</Text>
-                    <Text style={styles.detailValue}>{formatCurrency(bill.amount)}</Text>
-                  </View>
-                  <View style={styles.detailItem}>
-                    <Text style={styles.detailLabel}>{t('dueDate', language)}</Text>
-                    <Text style={[styles.detailValue, bill.status === 'overdue' && styles.overdueText]}>
-                      {formatDate(bill.due_date)}
-                    </Text>
-                  </View>
+                  <Text style={styles.sectionTitle}>
+                    {serviceType.replace('_', ' ').toUpperCase()}
+                  </Text>
+                  <Text style={styles.sectionCount}>
+                    {sectionBills.length} {sectionBills.length === 1 ? 'bill' : 'bills'}
+                  </Text>
                 </View>
 
-                {bill.status !== 'paid' && (
-                  <TouchableOpacity 
-                    style={styles.payBtn}
+                {/* Bills in this section */}
+                {sectionBills.map((bill) => (
+                  <TouchableOpacity
+                    key={bill.id}
+                    style={styles.billCard}
                     onPress={() => router.push(`/payment?billId=${bill.id}`)}
+                    activeOpacity={0.7}
                   >
-                    <Ionicons name="card" size={18} color={colors.textWhite} />
-                    <Text style={styles.payBtnText}>{t('payNow', language)}</Text>
+                    <View style={styles.billHeader}>
+                      <View style={styles.billInfo}>
+                        <Text style={styles.billType}>{bill.bill_number}</Text>
+                        <Text style={styles.billPeriod}>{bill.billing_period || 'No period'}</Text>
+                      </View>
+                      <View style={[styles.statusBadge, { backgroundColor: getStatusColor(bill.status) + '15', flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
+                        {bill.status === 'paid' && (
+                          <Ionicons name="checkmark-circle" size={16} color={getStatusColor(bill.status)} />
+                        )}
+                        <Text style={[styles.statusText, { color: getStatusColor(bill.status) }]}>
+                          {getStatusLabel(bill.status, language)}
+                        </Text>
+                      </View>
+                    </View>
+                    
+                    <View style={styles.billDetails}>
+                      <View style={styles.detailItem}>
+                        <Text style={styles.detailLabel}>{t('billAmount', language)}</Text>
+                        <Text style={styles.detailValue}>{formatCurrency(bill.amount)}</Text>
+                      </View>
+                      {bill.units_consumed != null && (
+                        <View style={styles.detailItem}>
+                          <Text style={styles.detailLabel}>{language === 'en' ? 'Units' : 'यूनिट'}</Text>
+                          <Text style={styles.detailValue}>{bill.units_consumed}</Text>
+                        </View>
+                      )}
+                      <View style={styles.detailItem}>
+                        <Text style={styles.detailLabel}>{t('dueDate', language)}</Text>
+                        <Text style={[styles.detailValue, bill.status === 'overdue' && styles.overdueText]}>
+                          {formatDate(bill.due_date)}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {bill.status !== 'paid' && (
+                      <TouchableOpacity 
+                        style={styles.payBtn}
+                        onPress={() => router.push(`/payment?billId=${bill.id}`)}
+                      >
+                        <Ionicons name="card" size={18} color={colors.textWhite} />
+                        <Text style={styles.payBtnText}>{t('payNow', language)}</Text>
+                      </TouchableOpacity>
+                    )}
                   </TouchableOpacity>
-                )}
-              </TouchableOpacity>
+                ))}
+              </View>
             ))
           )}
           <View style={{ height: spacing.xxxl }} />
@@ -372,5 +407,41 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
     fontWeight: '600',
     color: colors.textWhite,
+  },
+  sectionContainer: {
+    marginBottom: spacing.xl,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+    paddingHorizontal: spacing.sm,
+  },
+  sectionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: borderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sectionTitle: {
+    flex: 1,
+    fontSize: fontSize.lg,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginLeft: spacing.md,
+  },
+  sectionCount: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
+    backgroundColor: colors.background,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.full,
+  },
+  billPeriod: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
+    marginTop: 2,
   },
 });

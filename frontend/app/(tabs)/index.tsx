@@ -21,7 +21,7 @@ import { t, formatCurrency, getGreeting, getServiceColor, getServiceIcon } from 
 export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { user, language, setLanguage } = useAuth();
+  const { user, language, setLanguage, logout } = useAuth();
   
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -54,6 +54,11 @@ export default function HomeScreen() {
     setRefreshing(true);
     await fetchData();
     setRefreshing(false);
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    router.replace('/');
   };
 
   const activeComplaints = complaints.filter(
@@ -161,9 +166,9 @@ export default function HomeScreen() {
             </TouchableOpacity>
             <TouchableOpacity 
               style={styles.headerBtn}
-              onPress={() => router.push('/notifications')}
+              onPress={handleLogout}
             >
-              <Ionicons name="notifications" size={22} color={colors.textWhite} />
+              <Ionicons name="log-out" size={22} color={colors.textWhite} />
             </TouchableOpacity>
           </View>
         </View>

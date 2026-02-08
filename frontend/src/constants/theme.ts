@@ -33,11 +33,19 @@ export const colors = {
   payment: '#ff2d55',
   complaint: '#ff6b6b',
   
-  // Neutral
+  // Neutral / aliases used in admin & tabs
   border: '#e5e7eb',
   divider: '#f3f4f6',
   disabled: '#d1d5db',
   overlay: 'rgba(0,0,0,0.5)',
+  white: '#ffffff',
+  black: '#1a1a2e',
+  gray: '#6b7280',
+  grayLight: '#9ca3af',
+  grayLighter: '#e5e7eb',
+  secondary: '#4a1d7a',
+  secondaryLight: '#7b3fc7',
+  air_pollution: '#8b5cf6',
 };
 
 export const spacing = {

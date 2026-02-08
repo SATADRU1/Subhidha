@@ -35,34 +35,37 @@ export default function TabsLayout() {
         options={{
           title: language === 'en' ? 'Home' : 'होम',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home" size={24} color={color} />
+            <Ionicons name="home-outline" size={size} color={color} />
           ),
         }}
       />
+
       <Tabs.Screen
         name="bills"
         options={{
           title: t('myBills', language),
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="receipt" size={24} color={color} />
+            <Ionicons name="receipt-outline" size={size} color={color} />
           ),
         }}
       />
+
       <Tabs.Screen
         name="complaints"
         options={{
           title: t('myComplaints', language),
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="document-text" size={24} color={color} />
+            <Ionicons name="document-text-outline" size={size} color={color} />
           ),
         }}
       />
+
       <Tabs.Screen
         name="profile"
         options={{
           title: t('myProfile', language),
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person" size={24} color={color} />
+            <Ionicons name="person-outline" size={size} color={color} />
           ),
         }}
       />

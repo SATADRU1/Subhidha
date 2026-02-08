@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Subhidha</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+        }
+        .header {
+            background: rgba(255,255,255,0.1);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            backdrop-filter: blur(10px);
+        }
+        .header h1 { color: #4ecdc4; font-size: 1.8em; }
+        .logout-btn {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        .logout-btn:hover { background: #c0392b; transform: scale(1.05); }
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        .tab-btn {
+            background: rgba(255,255,255,0.1);
+            border: 2px solid #4ecdc4;
+            color: #4ecdc4;
+            padding: 12px 25px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        .tab-btn.active, .tab-btn:hover { background: #4ecdc4; color: #1a1a2e; }
+        .tab-content {
+            display: none;
+            background: rgba(255,255,255,0.05);
+            border-radius: 20px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+        }
+        .tab-content.active { display: block; }
+        .section-title {
+            color: #4ecdc4;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            border-bottom: 2px solid #4ecdc4;
+            padding-bottom: 10px;
+        }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; color: #a0a0a0; }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid rgba(78,205,196,0.3);
+            border-radius: 10px;
+            background: rgba(255,255,255,0.05);
+            color: #fff;
+            font-size: 1em;
+        }
+        .form-group input:focus, .form-group select:focus { outline: none; border-color: #4ecdc4; }
+        .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }
+        .submit-btn {
+            background: linear-gradient(135deg, #4ecdc4, #44a08d);
+            color: #1a1a2e;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1.1em;
+            transition: all 0.3s;
+        }
+        .submit-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(78,205,196,0.3); }
+        .customer-table, .bills-table, .notifications-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .customer-table th, .customer-table td,
+        .bills-table th, .bills-table td,
+        .notifications-table th, .notifications-table td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .customer-table th, .bills-table th, .notifications-table th {
+            background: rgba(78,205,196,0.2);
+            color: #4ecdc4;
+        }
+        .customer-table tr:hover, .bills-table tr:hover, .notifications-table tr:hover {
+            background: rgba(255,255,255,0.05);
+        }
+        .customer-id {
+            font-family: monospace;
+            background: rgba(78,205,196,0.2);
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 0.85em;
+        }
+        .status-badge {
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: bold;
+        }
+        .status-pending { background: #f39c12; color: #1a1a2e; }
+        .status-paid { background: #27ae60; color: white; }
+        .notification-item {
+            background: rgba(39,174,96,0.2);
+            border-left: 4px solid #27ae60;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 0 10px 10px 0;
+            animation: slideIn 0.3s ease;
+        }
+        .notification-item.unread {
+            background: rgba(241,196,15,0.2);
+            border-left-color: #f1c40f;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        .service-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .service-card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+        .service-card:hover, .service-card.selected { border-color: #4ecdc4; transform: translateY(-5px); }
+        .service-card h3 { color: #4ecdc4; margin-bottom: 10px; }
+        .service-card .icon { font-size: 2em; margin-bottom: 10px; }
+        .units-input { margin-top: 10px; display: none; }
+        .service-card.selected .units-input { display: block; }
+        .dashboard-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+        }
+        .stat-card h3 { color: #4ecdc4; font-size: 2em; }
+        .stat-card p { color: #a0a0a0; }
+        .notification-badge {
+            background: #e74c3c;
+            color: white;
+            border-radius: 50%;
+            padding: 2px 8px;
+            font-size: 0.75em;
+            margin-left: 5px;
+        }
+        .search-box { margin-bottom: 20px; }
+        .search-box input {
+            width: 100%;
+            max-width: 400px;
+            padding: 12px 20px;
+            border: 2px solid rgba(78,205,196,0.3);
+            border-radius: 25px;
+            background: rgba(255,255,255,0.05);
+            color: #fff;
+        }
+        .action-btn {
+            background: #4ecdc4;
+            color: #1a1a2e;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-right: 5px;
+        }
+        .action-btn:hover { background: #44a08d; }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal.active { display: flex; }
+        .modal-content {
+            background: #1a1a2e;
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .close-btn { background: none; border: none; color: #fff; font-size: 1.5em; cursor: pointer; }
+        .loading { text-align: center; padding: 40px; color: #4ecdc4; }
+        .loading::after {
+            content: '';
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #4ecdc4;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🏛️ Subhidha Admin Panel</h1>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
+
+    <div class="container">
+        <div class="tabs">
+            <button class="tab-btn active" onclick="showTab('dashboard')">📊 Dashboard</button>
+            <button class="tab-btn" onclick="showTab('customers')">👥 Customers</button>
+            <button class="tab-btn" onclick="showTab('generate-bill')">📝 Generate Bill</button>
+            <button class="tab-btn" onclick="showTab('all-bills')">📋 All Bills</button>
+            <button class="tab-btn" onclick="showTab('notifications')">🔔 Notifications <span id="notif-badge" class="notification-badge" style="display:none;">0</span></button>
+        </div>
+
+        <!-- Dashboard Tab -->
+        <div id="dashboard" class="tab-content active">
+            <h2 class="section-title">Dashboard Overview</h2>
+            <div class="dashboard-stats">
+                <div class="stat-card">
+                    <h3 id="total-customers">0</h3>
+                    <p>Total Customers</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="total-bills">0</h3>
+                    <p>Total Bills</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="pending-bills">0</h3>
+                    <p>Pending Bills</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="total-revenue">₹0</h3>
+                    <p>Total Revenue</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Customers Tab -->
+        <div id="customers" class="tab-content">
+            <h2 class="section-title">Customer Management</h2>
+            <div class="search-box">
+                <input type="text" id="customer-search" placeholder="Search by name, ID, or mobile..." onkeyup="filterCustomers()">
+            </div>
+            <table class="customer-table">
+                <thead>
+                    <tr>
+                        <th>Customer ID</th>
+                        <th>Name</th>
+                        <th>Mobile</th>
+                        <th>Email</th>
+                        <th>Address</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="customers-list">
+                    <tr><td colspan="6" class="loading">Loading customers...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Generate Bill Tab -->
+        <div id="generate-bill" class="tab-content">
+            <h2 class="section-title">Generate Bill</h2>
+            <form id="billForm" onsubmit="generateBill(event)">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Customer ID</label>
+                        <input type="text" id="customerId" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Select Customer</label>
+                        <select id="customer-select" required>
+                            <option value="">Select a customer...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Billing Period</label>
+                        <input type="text" id="billing-period" placeholder="e.g., January 2026" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Due Date</label>
+                        <input type="date" id="due-date" required>
+                    </div>
+                </div>
+
+                <h3 style="color: #4ecdc4; margin: 20px 0;">Select Services & Enter Units</h3>
+                
+                <div class="service-cards">
+                    <div class="service-card" onclick="toggleService('electricity', this)">
+                        <div class="icon">⚡</div>
+                        <h3>Electricity</h3>
+                        <p>Rate: ₹5/unit + ₹50 fixed</p>
+                        <div class="units-input">
+                            <label>Units Consumed (kWh)</label>
+                            <input type="number" id="electricity-units" min="0" placeholder="Enter units" onclick="event.stopPropagation()">
+                        </div>
+                    </div>
+                    
+                    <div class="service-card" onclick="toggleService('water', this)">
+                        <div class="icon">💧</div>
+                        <h3>Water</h3>
+                        <p>Rate: ₹0.02/liter + ₹30 fixed</p>
+                        <div class="units-input">
+                            <label>Units Consumed (Liters)</label>
+                            <input type="number" id="water-units" min="0" placeholder="Enter units" onclick="event.stopPropagation()">
+                        </div>
+                    </div>
+                    
+                    <div class="service-card" onclick="toggleService('gas', this)">
+                        <div class="icon">🔥</div>
+                        <h3>Gas</h3>
+                        <p>Rate: ₹15/cubic meter + ₹40 fixed</p>
+                        <div class="units-input">
+                            <label>Units Consumed (m³)</label>
+                            <input type="number" id="gas-units" min="0" placeholder="Enter units" onclick="event.stopPropagation()">
+                        </div>
+                    </div>
+                    
+                    <div class="service-card" onclick="toggleService('air_pollution', this)">
+                        <div class="icon">🌬️</div>
+                        <h3>Air Pollution Tax</h3>
+                        <p>Fixed Rate: ₹200</p>
+                        <div class="units-input">
+                            <label>Tax Amount (₹)</label>
+                            <input type="number" id="air_pollution-units" value="200" min="0" placeholder="Enter amount" onclick="event.stopPropagation()">
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="submit-btn">Generate Bills</button>
+            </form>
+        </div>
+
+        <!-- All Bills Tab -->
+        <div id="all-bills" class="tab-content">
+            <h2 class="section-title">All Bills</h2>
+            <div class="search-box">
+                <input type="text" id="bill-search" placeholder="Search by bill number, customer..." onkeyup="filterBills()">
+            </div>
+            <table class="bills-table">
+                <thead>
+                    <tr>
+                        <th>Bill Number</th>
+                        <th>Customer</th>
+                        <th>Service</th>
+                        <th>Amount</th>
+                        <th>Due Date</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="bills-list">
+                    <tr><td colspan="6" class="loading">Loading bills...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Notifications Tab -->
+        <div id="notifications" class="tab-content">
+            <h2 class="section-title">Payment Notifications</h2>
+            <div id="notifications-list">
+                <p class="loading">Loading notifications...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Customer Details Modal -->
+    <div id="customer-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Customer Details</h2>
+                <button class="close-btn" onclick="closeModal('customer-modal')">&times;</button>
+            </div>
+            <div id="customer-details"></div>
+        </div>
+    </div>
+
+    <script src="admin.js"></script>
+</body>
+</html>
